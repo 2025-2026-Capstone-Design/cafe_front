@@ -5,6 +5,7 @@ import { MOCK_CAFES } from '@/lib/mockData'
 import { ASPECT_LABELS, ALL_ASPECTS } from '@/lib/types'
 import { isBookmarked, toggleBookmark } from '@/lib/bookmarks'
 import RadarChart from '@/components/RadarChart'
+import { MOCK_REVIEWS } from '@/lib/mockReviews'
 
 interface AmenityMeta {
   label: string
@@ -139,32 +140,41 @@ export default function CafeDetailPage() {
         <RadarChart scores={cafe.aspectScores} />
       </Section>
 
-      {/* 측면별 점수 바 */}
+      {/* 측면별 점수 바 + 감성 비율 */}
       <Section title="측면별 분석">
-        <div className="space-y-3">
+        <div className="space-y-4">
           {activeAspects.map(key => {
             const score = cafe.aspectScores[key]
-            const color = score >= 70
-              ? 'bg-emerald-400'
-              : score >= 40
-              ? 'bg-neutral-300'
-              : 'bg-orange-400'
+            const color = score >= 70 ? 'bg-emerald-400' : score >= 40 ? 'bg-neutral-300' : 'bg-orange-400'
+            const kws = cafe.keywords[key] ?? []
+            const total = kws.reduce((s, k) => s + k.count, 0)
+            const posP = total > 0 ? kws.filter(k => k.sentiment === 'pos').reduce((s, k) => s + k.count, 0) / total : 0
+            const negP = total > 0 ? kws.filter(k => k.sentiment === 'neg').reduce((s, k) => s + k.count, 0) / total : 0
+            const neuP = 1 - posP - negP
             return (
               <div key={key}>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-neutral-600">
-                    {ASPECT_LABELS[key]}
-                  </span>
-                  <span className="text-xs font-medium text-neutral-500">
-                    {score}
-                  </span>
+                  <span className="text-xs text-neutral-600">{ASPECT_LABELS[key]}</span>
+                  <span className="text-xs font-medium text-neutral-500">{score}</span>
                 </div>
-                <div className="h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${color} transition-all`}
-                    style={{ width: `${score}%` }}
-                  />
+                {/* 점수 바 */}
+                <div className="h-1.5 bg-neutral-100 rounded-full overflow-hidden mb-1.5">
+                  <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${score}%` }} />
                 </div>
+                {/* 감성 비율 바 */}
+                {total > 0 && (
+                  <div className="flex h-1 rounded-full overflow-hidden gap-px">
+                    {posP > 0 && <div className="bg-emerald-300" style={{ width: `${posP * 100}%` }} />}
+                    {neuP > 0 && <div className="bg-neutral-200" style={{ width: `${neuP * 100}%` }} />}
+                    {negP > 0 && <div className="bg-orange-300" style={{ width: `${negP * 100}%` }} />}
+                  </div>
+                )}
+                {total > 0 && (
+                  <div className="flex gap-2.5 mt-1">
+                    {posP > 0 && <span className="text-[10px] text-emerald-600">긍정 {Math.round(posP * 100)}%</span>}
+                    {negP > 0 && <span className="text-[10px] text-orange-500">부정 {Math.round(negP * 100)}%</span>}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -197,6 +207,37 @@ export default function CafeDetailPage() {
                 </div>
               </div>
             ))}
+        </div>
+      </Section>
+      {/* 리뷰 목록 */}
+      <Section title={`리뷰 ${cafe.reviewCount.toLocaleString()}개`}>
+        <div className="space-y-4">
+          {(MOCK_REVIEWS[cafe.id] ?? []).map(review => (
+            <div key={review.id} className="border border-neutral-100 rounded-xl p-4">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center text-[11px] font-medium text-violet-700">
+                    {review.author.charAt(0)}
+                  </div>
+                  <span className="text-[12px] font-medium text-neutral-700">{review.author}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <svg key={i} width="10" height="10" viewBox="0 0 24 24"
+                        fill={i < review.rating ? '#f59e0b' : 'none'}
+                        stroke={i < review.rating ? '#f59e0b' : '#d1d5db'}
+                        strokeWidth="1.5">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-neutral-400">{review.date}</span>
+                </div>
+              </div>
+              <p className="text-[13px] text-neutral-600 leading-relaxed">{review.text}</p>
+            </div>
+          ))}
         </div>
       </Section>
     </main>
