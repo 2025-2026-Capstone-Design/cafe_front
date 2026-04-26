@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Cafe } from '@/lib/types'
+import { Cafe, AspectKey, ASPECT_LABELS } from '@/lib/types'
 import { getRepresentativeKeywords } from '@/lib/ranking'
 
 interface Props {
@@ -10,9 +10,17 @@ interface Props {
   rank: number
 }
 
+function getTopAspects(cafe: Cafe, n = 2): AspectKey[] {
+  return (Object.entries(cafe.aspectScores) as [AspectKey, number][])
+    .filter(([, score]) => score > 0)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, n)
+    .map(([key]) => key)
+}
+
 export default function CafeCard({ cafe, rank }: Props) {
   const keywords = getRepresentativeKeywords(cafe)
-  console.log('CafeCard render', cafe.id)
+  const topAspects = getTopAspects(cafe)
   return (
     <Link
       href={`/cafe/${cafe.id}`}
@@ -47,6 +55,15 @@ export default function CafeCard({ cafe, rank }: Props) {
           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
             {cafe.score}점
           </span>
+        </div>
+
+        {/* 강점 배지 */}
+        <div className="flex gap-1 mb-2">
+          {topAspects.map(key => (
+            <span key={key} className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 font-medium">
+              {ASPECT_LABELS[key].split('/')[0]} {cafe.aspectScores[key]}
+            </span>
+          ))}
         </div>
 
         {/* 카페명 */}
