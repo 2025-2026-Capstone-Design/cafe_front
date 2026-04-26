@@ -1,9 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Cafe, AspectKey, ASPECT_LABELS } from '@/lib/types'
 import { getRepresentativeKeywords } from '@/lib/ranking'
+import { getPreferences, calcMatchRate } from '@/lib/preferences'
 
 interface Props {
   cafe: Cafe
@@ -21,6 +23,13 @@ function getTopAspects(cafe: Cafe, n = 2): AspectKey[] {
 export default function CafeCard({ cafe, rank }: Props) {
   const keywords = getRepresentativeKeywords(cafe)
   const topAspects = getTopAspects(cafe)
+  const [matchRate, setMatchRate] = useState<number | null>(null)
+
+  useEffect(() => {
+    const prefs = getPreferences()
+    setMatchRate(calcMatchRate(cafe.aspectScores, prefs))
+  }, [cafe.aspectScores])
+
   return (
     <Link
       href={`/cafe/${cafe.id}`}
@@ -49,12 +58,19 @@ export default function CafeCard({ cafe, rank }: Props) {
 
       {/* 바디 */}
       <div className="p-3.5">
-        {/* 랭크 + 점수 */}
+        {/* 랭크 + 점수 + 매칭률 */}
         <div className="flex justify-between items-center mb-2">
           <span className="text-[11px] text-neutral-400">#{rank}</span>
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
-            {cafe.score}점
-          </span>
+          <div className="flex items-center gap-1.5">
+            {matchRate !== null && (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                ✓ {matchRate}%
+              </span>
+            )}
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
+              {cafe.score}점
+            </span>
+          </div>
         </div>
 
         {/* 강점 배지 */}
