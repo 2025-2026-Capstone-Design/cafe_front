@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { MOCK_CAFES } from '@/lib/mockData'
-import { AspectKey, Keyword } from '@/lib/types'
+import { AspectKey, ASPECT_LABELS, Keyword } from '@/lib/types'
 import { rankCafes } from '@/lib/ranking'
+import { getPreferences } from '@/lib/preferences'
 import CafeCard from '@/components/CafeCard'
 import SearchBar from '@/components/SearchBar'
 import FilterPanel, { KeywordId } from '@/components/FilterPanel'
+import Link from 'next/link'
 
 // 전체 카페에서 count 합산 기준 상위 키워드 추출
 function getPopularKeywords(limit = 8): Keyword[] {
@@ -38,6 +40,9 @@ export default function HomePage() {
   const [query, setQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>([])
+  const [preferences, setPreferences] = useState<AspectKey[]>([])
+
+  useEffect(() => { setPreferences(getPreferences()) }, [])
   // 적용된 키워드에서 측면 키 추출 (중복 제거)
   const activeAspects = useMemo<AspectKey[]>(() => {
   const keys = appliedKeywords.map(id => id.split(':')[0] as AspectKey)
@@ -91,9 +96,23 @@ export default function HomePage() {
     <main className="max-w-2xl mx-auto px-4 py-8 min-h-screen">
       {/* 헤더 */}
       <div className="mb-6">
-        <h1 className="font-serif text-2xl font-semibold text-neutral-900 tracking-tight mb-4">
-          근처 카페 추천
-        </h1>
+        {preferences.length > 0 ? (
+          <div className="mb-4">
+            <p className="text-[12px] text-violet-500 font-medium mb-1">맞춤 추천</p>
+            <h1 className="font-serif text-2xl font-semibold text-neutral-900 tracking-tight">
+              {preferences.slice(0, 2).map(k => ASPECT_LABELS[k].split('/')[0]).join(' · ')} 취향 카페
+            </h1>
+          </div>
+        ) : (
+          <div className="mb-4">
+            <h1 className="font-serif text-2xl font-semibold text-neutral-900 tracking-tight mb-1">
+              근처 카페 추천
+            </h1>
+            <Link href="/onboarding" className="text-[12px] text-violet-500 hover:underline">
+              취향을 설정하면 맞춤 추천을 받을 수 있어요 →
+            </Link>
+          </div>
+        )}
 
         {/* 검색창 + 필터 버튼 */}
         <SearchBar
