@@ -2,8 +2,9 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { MOCK_CAFES } from '@/lib/mockData'
-import { AspectKey, ASPECT_LABELS, ALL_ASPECTS } from '@/lib/types'
+import { ASPECT_LABELS, ALL_ASPECTS } from '@/lib/types'
 import { isBookmarked, toggleBookmark } from '@/lib/bookmarks'
+import RadarChart from '@/components/RadarChart'
 
 interface AmenityMeta {
   label: string
@@ -131,6 +132,11 @@ export default function CafeDetailPage() {
             )
           })}
         </div>
+      </Section>
+
+      {/* ABSA 레이더 차트 */}
+      <Section title="ABSA 분석 개요">
+        <RadarChart scores={cafe.aspectScores} />
       </Section>
 
       {/* 측면별 점수 바 */}
