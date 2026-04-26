@@ -3,12 +3,35 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { MOCK_CAFES } from '@/lib/mockData'
-import { AspectKey } from '@/lib/types'
+import { AspectKey, Keyword } from '@/lib/types'
 import { rankCafes } from '@/lib/ranking'
 import CafeCard from '@/components/CafeCard'
 import SearchBar from '@/components/SearchBar'
 import FilterPanel, { KeywordId } from '@/components/FilterPanel'
 
+// 전체 카페에서 count 합산 기준 상위 키워드 추출
+function getPopularKeywords(limit = 8): Keyword[] {
+  const map = new Map<string, Keyword>()
+  for (const cafe of MOCK_CAFES) {
+    for (const kws of Object.values(cafe.keywords)) {
+      for (const kw of kws ?? []) {
+        const prev = map.get(kw.text)
+        if (prev) {
+          map.set(kw.text, { ...prev, count: prev.count + kw.count })
+        } else {
+          map.set(kw.text, { ...kw })
+        }
+      }
+    }
+  }
+  return [...map.values()]
+    .filter(k => k.sentiment === 'pos')
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+}
+
+
+const POPULAR_KEYWORDS = getPopularKeywords()
 
 export default function HomePage() {
   const router = useRouter()
@@ -91,6 +114,21 @@ export default function HomePage() {
             onApply={handleApply}
             onReset={handleReset}
           />
+        )}
+
+        {/* 인기 키워드 칩 */}
+        {!filterOpen && (
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {POPULAR_KEYWORDS.map(kw => (
+              <button
+                key={kw.text}
+                onClick={() => router.push(`/search?q=${encodeURIComponent(kw.text)}`)}
+                className="text-[12px] px-3 py-1 rounded-full border border-neutral-200 bg-white text-neutral-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-colors"
+              >
+                {kw.text}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
