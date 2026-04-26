@@ -35,6 +35,15 @@ function getPopularKeywords(limit = 8): Keyword[] {
 
 const POPULAR_KEYWORDS = getPopularKeywords()
 
+const CATEGORY_GRID: { key: AspectKey; icon: string }[] = [
+  { key: 'coffee', icon: '☕' },
+  { key: 'bakery', icon: '🥐' },
+  { key: 'cake',   icon: '🎂' },
+  { key: 'bingsu', icon: '🍧' },
+  { key: 'space',  icon: '🪑' },
+  { key: 'vibe',   icon: '✨' },
+]
+
 export default function HomePage() {
   const router = useRouter()
   const [query, setQuery] = useState('')
@@ -150,6 +159,27 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* 카테고리 그리드 */}
+      {!filterOpen && (
+        <div className="mb-6">
+          <p className="text-[12px] text-neutral-400 mb-2.5">카테고리</p>
+          <div className="grid grid-cols-6 gap-2">
+            {CATEGORY_GRID.map(({ key, icon }) => (
+              <button
+                key={key}
+                onClick={() => router.push(`/search?aspect=${key}`)}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-neutral-100 bg-white hover:border-violet-200 hover:bg-violet-50 transition-colors"
+              >
+                <span className="text-lg">{icon}</span>
+                <span className="text-[9px] text-neutral-500 leading-tight text-center">
+                  {ASPECT_LABELS[key].split('/')[0]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 결과 수 */}
       {!query.trim() && (

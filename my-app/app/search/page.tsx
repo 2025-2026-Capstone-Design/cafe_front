@@ -54,17 +54,24 @@ export default function MapPage() {
   const isMapInitializedRef = useRef(false) // ✅ 중복 초기화 방지
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get('q') ?? ''
-// query state 초기값 변경
+  const initialAspect = searchParams.get('aspect') as AspectKey | null
   const [query, setQuery] = useState(initialQuery)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>([]) 
+  const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>([])
+  // 카테고리 그리드에서 진입 시 해당 측면을 activeAspects에 직접 추가
+  const [pinnedAspects, setPinnedAspects] = useState<AspectKey[]>(
+    initialAspect ? [initialAspect] : []
+  )
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [mapError, setMapError] = useState<string | null>(null) // ✅ 에러 상태 추가
   const [detailId, setDetailId] = useState<number | null>(null)
 
   const activeAspects = useMemo<AspectKey[]>(() => (
-    [...new Set(appliedKeywords.map(id => id.split(':')[0] as AspectKey))]
-  ), [appliedKeywords])
+    [...new Set([
+      ...pinnedAspects,
+      ...appliedKeywords.map(id => id.split(':')[0] as AspectKey),
+    ])]
+  ), [pinnedAspects, appliedKeywords])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -198,6 +205,7 @@ export default function MapPage() {
 
   const handleReset = () => {
     setAppliedKeywords([])
+    setPinnedAspects([])
     setFilterOpen(false)
   }
 
