@@ -47,14 +47,17 @@ export interface Amenities {
 }
 
 export interface Cafe {
-  id:          number
-  name:        string
-  address:     string
-  imageUrl?:   string
-  reviewCount: number
-  score:       number                        // 종합 추천 점수 (0~100)
+  id:           string
+  name:         string
+  address:      string
+  imageUrl?:    string
+  reviewCount:  number
+  score:        number                       // 종합 추천 점수 (0~100)
   aspectScores: Record<AspectKey, number>   // 각 측면 점수 (0~100, 데이터 없으면 0)
-  keywords:    Partial<Record<AspectKey, Keyword[]>>
-  amenities:   Amenities
-  isOpen?:     boolean
+  keywords:     Partial<Record<AspectKey, Keyword[]>>
+  amenities:    Amenities
+  isOpen?:      boolean
+  lat?:         number
+  lon?:         number
+  topKeywords?: { keyword: string; count: number }[]
 }

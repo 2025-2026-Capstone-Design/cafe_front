@@ -2,7 +2,7 @@ import { Cafe } from './types'
 
 export const MOCK_CAFES: Cafe[] = [
   {
-    id: 1,
+    id: '1',
     name: '온도 커피로스터스',
     address: '서울 마포구 연남동 000-00',
     reviewCount: 312,
@@ -44,7 +44,7 @@ export const MOCK_CAFES: Cafe[] = [
     },
   },
   {
-    id: 2,
+    id: '2',
     name: '블루문 베이커리',
     address: '서울 서대문구 북아현동 000-00',
     reviewCount: 198,
@@ -77,7 +77,7 @@ export const MOCK_CAFES: Cafe[] = [
     },
   },
   {
-    id: 3,
+    id: '3',
     name: '여름날의 빙수',
     address: '서울 성동구 성수동 000-00',
     reviewCount: 445,
@@ -109,7 +109,7 @@ export const MOCK_CAFES: Cafe[] = [
     },
   },
   {
-    id: 4,
+    id: '4',
     name: '평일의 여백',
     address: '서울 종로구 삼청동 000-00',
     reviewCount: 156,
@@ -141,7 +141,7 @@ export const MOCK_CAFES: Cafe[] = [
     },
   },
   {
-    id: 5,
+    id: '5',
     name: '커피앤케이크',
     address: '서울 용산구 이태원동 000-00',
     reviewCount: 289,
@@ -170,7 +170,7 @@ export const MOCK_CAFES: Cafe[] = [
     },
   },
   {
-    id: 6,
+    id: '6',
     name: '그라운드 로스터리',
     address: '서울 강남구 압구정동 000-00',
     reviewCount: 501,
