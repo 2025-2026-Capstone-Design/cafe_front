@@ -13,7 +13,7 @@ export default function BookmarkPage() {
 
   useEffect(() => {
     const ids = getBookmarks()
-    const cafes = MOCK_CAFES.filter(c => ids.includes(c.id))
+    const cafes = MOCK_CAFES.filter(c => ids.includes(c.id))  // ids and c.id are both strings
     setBookmarkedCafes(cafes)
     setMounted(true)
   }, [])

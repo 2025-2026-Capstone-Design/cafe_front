@@ -21,7 +21,11 @@ function getTopAspects(cafe: Cafe, n = 2): AspectKey[] {
 }
 
 export default function CafeCard({ cafe, rank }: Props) {
-  const keywords = getRepresentativeKeywords(cafe)
+  const structuredKeywords = getRepresentativeKeywords(cafe)
+  const flatKeywords = cafe.topKeywords?.slice(0, 5).map(k => ({
+    text: k.keyword, sentiment: 'pos' as const, count: k.count,
+  })) ?? []
+  const keywords = structuredKeywords.length > 0 ? structuredKeywords : flatKeywords
   const topAspects = getTopAspects(cafe)
   const [matchRate, setMatchRate] = useState<number | null>(null)
 
