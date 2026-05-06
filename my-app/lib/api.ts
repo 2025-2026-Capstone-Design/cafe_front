@@ -13,6 +13,9 @@ export interface CafeSearchItem {
   imageUrls: string[]
   description: string
   topKeywords: TopKeyword[]
+  aspectVector?: number[]  // 12-dim, from cafe_aspect_vectors via cache
+  lat?: number             // backend stores longitude here (~127)
+  lon?: number             // backend stores latitude here (~37)
 }
 
 export interface SearchResponse {
@@ -44,13 +47,13 @@ export interface ApiReview {
 export interface CafeDetail extends CafeSearchItem {
   microReview: string
   address: string
-  lat: number
-  lon: number
+  lat: number   // backend returns 127.xx here (actually longitude)
+  lon: number   // backend returns 37.xx here (actually latitude)
   businessHours: string
-  convenience: string[]
+  convenience: Record<string, boolean>
   informationFacilitie: string[]
   menus: unknown[]
-  reviews: ApiReview[]
+  reviews: { reviews: ApiReview[]; totalCount: number }
 }
 
 const ASPECT_INDEX: Record<string, number> = {
@@ -79,6 +82,23 @@ export async function searchCafes(
   })
   const res = await fetch(`${BASE_URL}/cafe/search?${params}`)
   if (!res.ok) throw new Error(`Search failed: ${res.status}`)
+  return res.json() as Promise<SearchResponse>
+}
+
+export async function searchCafesAdvanced(
+  aspectVector: number[],
+  keywords: string[],
+  page = 1,
+  limit = 50,
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({
+    aspectVector: aspectVector.join(','),
+    keywords: keywords.join(','),
+    page: String(page),
+    limit: String(limit),
+  })
+  const res = await fetch(`${BASE_URL}/cafe/search/advanced?${params}`)
+  if (!res.ok) throw new Error(`Advanced search failed: ${res.status}`)
   return res.json() as Promise<SearchResponse>
 }
 

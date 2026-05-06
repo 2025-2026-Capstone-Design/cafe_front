@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ALL_ASPECTS, ASPECT_LABELS, AspectKey } from '@/lib/types'
+import { getPreferences } from '@/lib/preferences'
 
 const ASPECT_ICONS: Record<AspectKey, string> = {
   coffee:  '☕',
@@ -22,6 +23,11 @@ const ASPECT_ICONS: Record<AspectKey, string> = {
 export default function OnboardingPage() {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<AspectKey>>(new Set())
+
+  useEffect(() => {
+    const prefs = getPreferences()
+    if (prefs.length > 0) setSelected(new Set(prefs))
+  }, [])
 
   const toggle = (key: AspectKey) => {
     setSelected((prev) => {

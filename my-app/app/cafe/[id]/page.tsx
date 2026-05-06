@@ -11,19 +11,18 @@ import { mapDetail } from '@/lib/mappers'
 
 interface AmenityMeta {
   label: string
-  icon: ReactNode
+  Icon: () => ReactNode
 }
 
-// 아이콘 함수들 먼저 정의 후 이 객체 선언
 const AMENITY_META: Record<string, AmenityMeta> = {
-  parking:     { label: '주차',     icon: <ParkingIcon /> },
-  wifi:        { label: 'Wi-Fi',    icon: <WifiIcon /> },
-  outlet:      { label: '콘센트',   icon: <OutletIcon /> },
-  pet:         { label: '반려동물', icon: <PetIcon /> },
-  takeout:     { label: '포장',     icon: <TakeoutIcon /> },
-  group:       { label: '단체',     icon: <GroupIcon /> },
-  reservation: { label: '예약',     icon: <ReservationIcon /> },
-  kids:        { label: '키즈',     icon: <KidsIcon /> },
+  parking:     { label: '주차',     Icon: ParkingIcon },
+  wifi:        { label: 'Wi-Fi',    Icon: WifiIcon },
+  outlet:      { label: '콘센트',   Icon: OutletIcon },
+  pet:         { label: '반려동물', Icon: PetIcon },
+  takeout:     { label: '포장',     Icon: TakeoutIcon },
+  group:       { label: '단체',     Icon: GroupIcon },
+  reservation: { label: '예약',     Icon: ReservationIcon },
+  kids:        { label: '키즈',     Icon: KidsIcon },
 }
 
 export default function CafeDetailPage() {
@@ -43,7 +42,8 @@ export default function CafeDetailPage() {
         setCafe(mapped)
         setBookmarked(isBookmarked(mapped.id))
         // API 리뷰를 Review 형식으로 변환
-        const apiReviews: Review[] = detail.reviews.map((r, i) => ({
+        const rawReviews = Array.isArray(detail.reviews?.reviews) ? detail.reviews.reviews : []
+        const apiReviews: Review[] = rawReviews.map((r, i) => ({
           id: r.id ?? i,
           author: r.userId ?? '익명',
           date: r.createdAt ? r.createdAt.slice(0, 10) : '',
@@ -52,7 +52,8 @@ export default function CafeDetailPage() {
         }))
         setReviews(apiReviews)
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[CafeDetail] API 실패, cafeId:', cafeId, err)
         const fallback = MOCK_CAFES.find(c => c.id === cafeId) ?? null
         setCafe(fallback)
         if (fallback) {
@@ -151,13 +152,13 @@ export default function CafeDetailPage() {
       {/* 편의시설 */}
       <Section title="편의시설">
         <div className="grid grid-cols-4 gap-y-3">
-          {Object.entries(AMENITY_META).map(([key, { label, icon }]) => {
+          {Object.entries(AMENITY_META).map(([key, { label, Icon }]) => {
             const active = cafe.amenities[key as keyof typeof cafe.amenities]
             return (
               <div key={key} className="flex flex-col items-center gap-1">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center
                   ${active ? 'bg-violet-50 text-violet-700' : 'bg-neutral-100 text-neutral-300'}`}>
-                  {icon}
+                  <Icon />
                 </div>
                 <span className={`text-[10px] ${active ? 'text-neutral-700' : 'text-neutral-300'}`}>
                   {label}

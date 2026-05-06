@@ -3,13 +3,13 @@
 import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { MOCK_CAFES } from '@/lib/mockData'
-import { Cafe, AspectKey } from '@/lib/types'
-import { rankCafes } from '@/lib/ranking'
+import { Cafe, AspectKey, Keyword } from '@/lib/types'
 import FilterPanel, { KeywordId } from '@/components/FilterPanel'
+import { getPreferences } from '@/lib/preferences'
 import SearchBar from '@/components/SearchBar'
 import { useSearchParams } from 'next/navigation'
 import CafeDetailPanel from '@/components/CafeDetailPanel'
-import { searchCafes, aspectsToVector } from '@/lib/api'
+import { searchCafes, searchCafesAdvanced, aspectsToVector } from '@/lib/api'
 import { mapSearchItem } from '@/lib/mappers'
 
 declare global {
@@ -38,15 +38,22 @@ function updateMarkerStyle(
   selectedId: string | null
 ) {
   Object.entries(markers).forEach(([id, marker]) => {
-    const el = marker.content as HTMLElement
+    const wrapper = marker.content as HTMLElement
+    const circle = wrapper.firstElementChild as HTMLElement | null
+    const label = wrapper.lastElementChild as HTMLElement | null
+    if (!circle || !label || circle === label) return
     if (id === selectedId) {
-      el.style.background = '#3C3489'
-      el.style.borderColor = '#3C3489'
-      el.style.color = '#EEEDFE'
+      circle.style.width = '36px'
+      circle.style.height = '36px'
+      circle.style.background = '#3C3489'
+      circle.style.boxShadow = '0 2px 8px rgba(60,52,137,0.5)'
+      label.style.display = 'block'
     } else {
-      el.style.background = 'white'
-      el.style.borderColor = '#d1d5db'
-      el.style.color = '#1a1a1a'
+      circle.style.width = '30px'
+      circle.style.height = '30px'
+      circle.style.background = '#7C3AED'
+      circle.style.boxShadow = '0 2px 6px rgba(0,0,0,0.25)'
+      label.style.display = 'none'
     }
   })
 }
@@ -82,10 +89,12 @@ function MapPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
+  const [mapReady, setMapReady] = useState(false)
 
   // API 결과 or mock fallback
-  const [cafes, setCafes] = useState<Cafe[]>(MOCK_CAFES)
-  const [loadingCafes, setLoadingCafes] = useState(false)
+  const [cafes, setCafes] = useState<Cafe[]>([])
+  const [loadingCafes, setLoadingCafes] = useState(true)
+  const [preferences] = useState<AspectKey[]>(() => getPreferences())
 
   const activeAspects = useMemo<AspectKey[]>(() => (
     [...new Set([
@@ -94,28 +103,39 @@ function MapPage() {
     ])]
   ), [pinnedAspects, appliedKeywords])
 
-  // activeAspects가 바뀌면 API 재조회
-  useEffect(() => {
-    if (activeAspects.length === 0) {
-      setCafes(MOCK_CAFES)
-      return
-    }
+  const fetchCafes = useCallback((aspects: AspectKey[], keywords: string[]) => {
     setLoadingCafes(true)
-    searchCafes(aspectsToVector(activeAspects), 1, 50)
+    const vector = aspects.length > 0
+      ? aspectsToVector(aspects)
+      : preferences.length > 0
+        ? aspectsToVector(preferences)
+        : new Array(12).fill(0) as number[]
+    console.log('[fetchCafes] keywords:', keywords, 'vector:', vector)
+    const fetch$ = keywords.length > 0
+      ? searchCafesAdvanced(vector, keywords, 1, 50).then(data => {
+          console.log('[fetchCafes] advanced result count:', data.cafes.length)
+          return data.cafes.length > 0 ? data : searchCafes(vector, 1, 50)
+        })
+      : searchCafes(vector, 1, 50)
+    fetch$
       .then(data => setCafes(data.cafes.map(mapSearchItem)))
       .catch(() => setCafes(MOCK_CAFES))
       .finally(() => setLoadingCafes(false))
-  }, [activeAspects.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [preferences])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // pinnedAspects 변경(카테고리 클릭) 또는 초기 로드 시 API 호출
+  useEffect(() => {
+    fetchCafes(pinnedAspects, [])
+  }, [pinnedAspects.join(','), preferences.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const filtered = q
+    return q
       ? cafes.filter(cafe =>
           cafe.name.toLowerCase().includes(q) || cafe.address.toLowerCase().includes(q)
         )
       : cafes
-    return rankCafes(filtered, activeAspects)
-  }, [cafes, query, activeAspects])
+  }, [cafes, query])
 
   const selectCafeRef = useRef<(id: string) => void>(() => {})
 
@@ -130,7 +150,8 @@ function MapPage() {
     const cafe = cafes.find(c => c.id === id)
     const coords = cafe ? getCoords(cafe) : null
     if (coords && mapInstanceRef.current) {
-      mapInstanceRef.current.panTo(coords)
+      mapInstanceRef.current.setZoom(17)
+      mapInstanceRef.current.panTo({ lat: coords.lat, lng: coords.lng })
     }
     document.getElementById(`cafe-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [selectedId, router, cafes])
@@ -150,34 +171,55 @@ function MapPage() {
       const coords = getCoords(cafe)
       if (!coords) return
 
-      const pin = document.createElement('div')
-      pin.textContent = cafe.name
-      pin.style.cssText = `
-        background: white;
-        border: 1px solid #d1d5db;
-        border-radius: 999px;
-        padding: 4px 10px;
-        font-size: 11px;
-        font-weight: 500;
-        font-family: 'Noto Sans KR', sans-serif;
-        color: #1a1a1a;
-        white-space: nowrap;
-        cursor: pointer;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;'
+
+      const circle = document.createElement('div')
+      circle.style.cssText = `
+        width: 30px; height: 30px;
+        background: #7C3AED;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        display: flex; align-items: center; justify-content: center;
         transition: all 0.15s;
       `
+      circle.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 010 8h-1"/><path d="M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8z"/></svg>`
+
+      const nameLabel = document.createElement('div')
+      nameLabel.textContent = cafe.name
+      nameLabel.style.cssText = `
+        display: none;
+        background: #3C3489; color: white;
+        padding: 2px 8px; border-radius: 4px;
+        font-size: 11px; font-weight: 500;
+        white-space: nowrap; margin-top: 4px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      `
+      wrapper.appendChild(circle)
+      wrapper.appendChild(nameLabel)
 
       const marker = new window.google.maps.marker.AdvancedMarkerElement({
         map: mapInstanceRef.current!,
         position: coords,
-        content: pin,
+        content: wrapper,
         title: cafe.name,
       })
       marker.addListener('click', () => selectCafeRef.current(cafe.id))
       markersRef.current[cafe.id] = marker
     })
     updateMarkerStyle(markersRef.current, selectedId)
-  }, [results])  // eslint-disable-line react-hooks/exhaustive-deps
+
+    // 마커들이 모두 보이도록 bounds 조정
+    const bounds = new window.google.maps.LatLngBounds()
+    results.forEach(cafe => {
+      const coords = getCoords(cafe)
+      if (coords) bounds.extend(coords)
+    })
+    if (!bounds.isEmpty()) {
+      mapInstanceRef.current.fitBounds(bounds, 60)
+    }
+  }, [results, mapReady])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const initMap = useCallback(() => {
     if (!mapRef.current || isMapInitializedRef.current) return
@@ -186,20 +228,18 @@ function MapPage() {
     try {
       const map = new window.google.maps.Map(mapRef.current, {
         center: { lat: 37.555, lng: 126.990 },
-        zoom: 13,
+        zoom: 15,
         mapId: process.env.NEXT_PUBLIC_GOOGLE_MAP_ID ?? 'DEMO_MAP_ID',
         disableDefaultUI: true,
         zoomControl: true,
-        zoomControlOptions: {
-          position: window.google.maps.ControlPosition.RIGHT_BOTTOM,
-        },
       })
       mapInstanceRef.current = map
+      setMapReady(true)
     } catch (err) {
       console.error('Google Maps 초기화 실패:', err)
       setMapError('지도를 불러오는 데 실패했습니다.')
     }
-  }, [])
+  }, [setMapReady])
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -232,38 +272,48 @@ function MapPage() {
     }
   }, [initMap])
 
-  const handleApply = (selected: Set<KeywordId>) => {
-    setAppliedKeywords([...selected])
+  const fetchCafesRef = useRef(fetchCafes)
+  const pinnedAspectsRef = useRef(pinnedAspects)
+  useEffect(() => { fetchCafesRef.current = fetchCafes }, [fetchCafes])
+  useEffect(() => { pinnedAspectsRef.current = pinnedAspects }, [pinnedAspects])
+
+  const handleApply = useCallback((selected: Set<KeywordId>) => {
+    const ids = [...selected]
+    console.log('[handleApply] called, ids:', ids)
+    setAppliedKeywords(ids)
     setFilterOpen(false)
-  }
+    const aspects = [...new Set([...pinnedAspectsRef.current, ...ids.map(id => id.split(':')[0] as AspectKey)])]
+    const keywords = ids.map(id => id.split(':')[1])
+    console.log('[handleApply] aspects:', aspects, 'keywords:', keywords)
+    fetchCafesRef.current(aspects, keywords)
+  }, [])
 
   const handleReset = () => {
     setAppliedKeywords([])
     setPinnedAspects([])
     setFilterOpen(false)
+    fetchCafes([], [])
   }
 
   const handleRemoveKeyword = (id: KeywordId) => {
-    setAppliedKeywords(prev => prev.filter(k => k !== id))
+    const next = appliedKeywords.filter(k => k !== id)
+    setAppliedKeywords(next)
+    const aspects = [...new Set([...pinnedAspects, ...next.map(k => k.split(':')[0] as AspectKey)])]
+    const keywords = next.map(k => k.split(':')[1])
+    fetchCafes(aspects, keywords)
   }
 
-  const selectedCafe = results.find(c => c.id === selectedId)
+  const closeDetail = useCallback(() => {
+    setDetailId(null)
+    setSelectedId(null)
+    updateMarkerStyle(markersRef.current, null)
+  }, [])
 
   return (
     <div className="flex h-[calc(100vh-56px)] overflow-hidden font-sans">
-      {/* ── 왼쪽 패널 ── */}
-      <div className="w-[320px] shrink-0 flex flex-col border-r border-neutral-200 bg-white overflow-hidden">
+      {/* ── 왼쪽 목록 패널 (항상 표시) ── */}
+      <div className="w-[320px] shrink-0 flex flex-col border-r border-neutral-200 bg-white">
         <div className="p-3">
-          <button
-            onClick={() => { setDetailId(null); setSelectedId(null); updateMarkerStyle(markersRef.current, null) }}
-            className="flex items-center gap-1 text-[12px] text-neutral-400 hover:text-neutral-700 mb-3"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M19 12H5M12 5l-7 7 7 7"/>
-            </svg>
-            목록으로
-          </button>
-
           <SearchBar
             query={query}
             onQueryChange={setQuery}
@@ -273,124 +323,79 @@ function MapPage() {
             appliedKeywords={appliedKeywords}
             onRemoveKeyword={handleRemoveKeyword}
           />
-
           {filterOpen && (
             <div className="overflow-y-auto max-h-[60vh] border-t border-neutral-100">
-              <FilterPanel
-                applied={appliedKeywords}
-                onApply={handleApply}
-                onReset={handleReset}
-              />
+              <FilterPanel applied={appliedKeywords} onApply={handleApply} onReset={handleReset} />
             </div>
           )}
         </div>
 
         <div className="px-3.5 py-2 text-[11px] text-neutral-400 border-b border-neutral-100 flex items-center gap-2">
-          {loadingCafes
-            ? <span>검색 중…</span>
-            : <span>{results.length}개 카페</span>
-          }
-          {activeAspects.length > 0 && (
-            <span className="text-violet-500">· 필터 적용됨</span>
-          )}
+          {loadingCafes ? <span>검색 중…</span> : <span>{results.length}개 카페</span>}
+          {activeAspects.length > 0 && <span className="text-violet-500">· 필터 적용됨</span>}
         </div>
 
-        <div className="flex-1 relative overflow-hidden">
-          {/* 카드 리스트 */}
-          <div className={`absolute inset-0 overflow-y-auto transition-transform duration-200
-            ${detailId ? '-translate-x-full' : 'translate-x-0'}`}>
-            {loadingCafes ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : results.length === 0 ? (
-              <p className="text-center text-[13px] text-neutral-400 py-12">
-                조건에 맞는 카페가 없어요
-              </p>
-            ) : (
-              results.map((cafe, i) => {
-                const isSelected = selectedId === cafe.id
-                const repKeywords = Object.values(cafe.keywords)
-                  .flat()
-                  .sort((a, b) => b.count - a.count)
-                  .slice(0, 3)
-                const flatKeywords = cafe.topKeywords?.slice(0, 3) ?? []
-                const thumbColors = ['#C8B49A','#D4C4A8','#A8C4C8','#B8C4A8','#C4A8B8','#B4A898']
-
-                return (
-                  <div
-                    key={cafe.id}
-                    id={`cafe-card-${cafe.id}`}
-                    onClick={() => selectCafe(cafe.id)}
-                    className={`flex gap-2.5 px-3.5 py-3 border-b border-neutral-100 cursor-pointer transition-colors
-                      ${isSelected ? 'bg-violet-50' : 'hover:bg-neutral-50'}`}
-                  >
-                    <div
-                      className="w-16 h-16 rounded-lg shrink-0 flex items-center justify-center"
-                      style={{ background: `${thumbColors[i % thumbColors.length]}22` }}
-                    >
-                      {cafe.imageUrl ? (
-                        <img src={cafe.imageUrl} alt={cafe.name} className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
-                          <rect x="4" y="8" width="32" height="24" rx="3" stroke="#aaa" strokeWidth="1.5" opacity="0.5"/>
-                          <circle cx="14" cy="17" r="3" fill="#aaa" opacity="0.5"/>
-                          <path d="M4 28l8-7 6 5 6-8 12 11" stroke="#aaa" strokeWidth="1.5" fill="none" opacity="0.5"/>
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-0.5">
-                        <span className="font-serif text-[14px] font-semibold text-neutral-900 truncate max-w-[130px]">
-                          {cafe.name}
-                        </span>
-                        {cafe.score > 0 && (
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 shrink-0 ml-1">
-                            {cafe.score}점
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-neutral-500 truncate mb-1.5">{cafe.address}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {(repKeywords.length > 0 ? repKeywords : flatKeywords.map(k => ({ text: k.keyword, sentiment: 'pos' as const, count: k.count }))).map(kw => (
-                          <span
-                            key={kw.text}
-                            className={`text-[10px] px-1.5 py-0.5 rounded-full border
-                              ${kw.sentiment === 'pos'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : 'bg-orange-50 text-orange-800 border-orange-200'
-                              }`}
-                          >
-                            {kw.text}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+        <div className="flex-1 overflow-y-auto">
+          {loadingCafes ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : results.length === 0 ? (
+            <p className="text-center text-[13px] text-neutral-400 py-12">조건에 맞는 카페가 없어요</p>
+          ) : results.map((cafe, i) => {
+            const isSelected = selectedId === cafe.id
+            const repKeywords = (Object.values(cafe.keywords).flat() as Keyword[]).sort((a, b) => b.count - a.count).slice(0, 3)
+            const flatKeywords = cafe.topKeywords?.slice(0, 3) ?? []
+            const thumbColors = ['#C8B49A','#D4C4A8','#A8C4C8','#B8C4A8','#C4A8B8','#B4A898']
+            return (
+              <div
+                key={cafe.id}
+                id={`cafe-card-${cafe.id}`}
+                onClick={() => selectCafe(cafe.id)}
+                className={`flex gap-2.5 px-3.5 py-3 border-b border-neutral-100 cursor-pointer transition-colors
+                  ${isSelected ? 'bg-violet-50' : 'hover:bg-neutral-50'}`}
+              >
+                <div
+                  className="w-16 h-16 rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
+                  style={{ background: `${thumbColors[i % thumbColors.length]}22` }}
+                >
+                  {cafe.imageUrl ? (
+                    <img src={cafe.imageUrl} alt={cafe.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
+                      <rect x="4" y="8" width="32" height="24" rx="3" stroke="#aaa" strokeWidth="1.5" opacity="0.5"/>
+                      <circle cx="14" cy="17" r="3" fill="#aaa" opacity="0.5"/>
+                      <path d="M4 28l8-7 6 5 6-8 12 11" stroke="#aaa" strokeWidth="1.5" fill="none" opacity="0.5"/>
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start mb-0.5">
+                    <span className="font-serif text-[14px] font-semibold text-neutral-900 truncate max-w-[130px]">{cafe.name}</span>
+                    {cafe.score > 0 && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 shrink-0 ml-1">
+                        {cafe.score}점
+                      </span>
+                    )}
                   </div>
-                )
-              })
-            )}
-          </div>
-
-          {/* 상세 패널 */}
-          <div className={`absolute inset-0 overflow-y-auto bg-white transition-transform duration-200
-            ${detailId ? 'translate-x-0' : 'translate-x-full'}`}>
-            <button
-              onClick={() => setDetailId(null)}
-              className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-700 px-3.5 py-3 border-b border-neutral-100 w-full"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M19 12H5M12 5l-7 7 7 7"/>
-              </svg>
-              목록으로
-            </button>
-            {detailId && <CafeDetailPanel cafeId={detailId} />}
-          </div>
+                  <p className="text-[11px] text-neutral-500 truncate mb-1.5">{cafe.address}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(repKeywords.length > 0 ? repKeywords : flatKeywords.map(k => ({ text: k.keyword, sentiment: 'pos' as const, count: k.count }))).map(kw => (
+                      <span key={kw.text} className={`text-[10px] px-1.5 py-0.5 rounded-full border
+                        ${kw.sentiment === 'pos' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-orange-50 text-orange-800 border-orange-200'}`}>
+                        {kw.text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
-      {/* ── 오른쪽 지도 ── */}
-      <div className="flex-1 relative">
+      {/* ── 오른쪽 지도 + 상세 오버레이 ── */}
+      <div className="flex-1 relative overflow-hidden">
         {mapError ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-neutral-50 gap-3">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5">
@@ -402,27 +407,24 @@ function MapPage() {
           <div ref={mapRef} className="w-full h-full" />
         )}
 
-        {selectedCafe && !mapError && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-64 bg-white border border-neutral-200 rounded-xl p-3.5 shadow-sm">
-            <p className="font-serif text-[14px] font-semibold text-neutral-900 mb-0.5">
-              {selectedCafe.name}
-            </p>
-            <p className="text-[11px] text-neutral-500 mb-2.5">{selectedCafe.address}</p>
-            <div className="flex justify-between items-center">
-              {selectedCafe.score > 0 && (
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
-                  {selectedCafe.score}점
-                </span>
-              )}
+        {/* 상세 패널 — 지도 위 슬라이드 오버레이 */}
+        <div className={`absolute top-0 left-0 h-full w-[360px] bg-white shadow-2xl overflow-y-auto z-10
+          transition-transform duration-200 ${detailId ? 'translate-x-0' : '-translate-x-full'}`}>
+          {detailId && (
+            <>
               <button
-                onClick={() => router.push(`/cafe/${selectedCafe.id}`)}
-                className="text-[11px] text-violet-600 hover:text-violet-800 ml-auto"
+                onClick={closeDetail}
+                className="sticky top-0 z-10 flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-700 px-3.5 py-3 border-b border-neutral-100 w-full bg-white"
               >
-                상세보기 →
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M19 12H5M12 5l-7 7 7 7"/>
+                </svg>
+                닫기
               </button>
-            </div>
-          </div>
-        )}
+              <CafeDetailPanel cafeId={detailId} />
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

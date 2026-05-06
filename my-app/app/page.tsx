@@ -97,13 +97,11 @@ export default function HomePage() {
     }
   }, [router])
 
-  const baseCafes = apiCafes.length > 0 ? apiCafes : MOCK_CAFES
+const popularKeywords = useMemo(() => getPopularKeywords(MOCK_CAFES), [])
 
-  const popularKeywords = useMemo(() => getPopularKeywords(MOCK_CAFES), [])
-
-  const results = useMemo(() => {
-    return rankCafes(baseCafes, activeAspects.length > 0 ? activeAspects : preferences)
-  }, [baseCafes, activeAspects, preferences])
+  const results = apiCafes.length > 0
+    ? apiCafes
+    : rankCafes(MOCK_CAFES, activeAspects.length > 0 ? activeAspects : preferences)
 
   const statusText = useMemo(() => {
     const parts: string[] = []
@@ -119,9 +117,12 @@ export default function HomePage() {
         {preferences.length > 0 ? (
           <div className="mb-4">
             <p className="text-[12px] text-violet-500 font-medium mb-1">맞춤 추천</p>
-            <h1 className="font-serif text-2xl font-semibold text-neutral-900 tracking-tight">
+            <h1 className="font-serif text-2xl font-semibold text-neutral-900 tracking-tight mb-1">
               {preferences.slice(0, 2).map(k => ASPECT_LABELS[k].split('/')[0]).join(' · ')} 취향 카페
             </h1>
+            <Link href="/onboarding" className="text-[12px] text-violet-500 hover:underline">
+              취향 재설정 →
+            </Link>
           </div>
         ) : (
           <div className="mb-4">
