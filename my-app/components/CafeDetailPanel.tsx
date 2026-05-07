@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MOCK_CAFES } from '@/lib/mockData'
 import { Cafe, AspectKey, ASPECT_LABELS, ALL_ASPECTS } from '@/lib/types'
 import { isBookmarked, toggleBookmark } from '@/lib/bookmarks'
 import { getCafeDetail } from '@/lib/api'
@@ -25,9 +24,7 @@ export default function CafeDetailPanel({ cafeId }: Props) {
         setBookmarked(isBookmarked(mapped.id))
       })
       .catch(() => {
-        const fallback = MOCK_CAFES.find(c => c.id === cafeId) ?? null
-        setCafe(fallback)
-        if (fallback) setBookmarked(isBookmarked(fallback.id))
+        setCafe(null)
       })
       .finally(() => setLoading(false))
   }, [cafeId])
@@ -43,7 +40,7 @@ export default function CafeDetailPanel({ cafeId }: Props) {
   if (!cafe) return null
 
   const handleBookmark = () => {
-    const next = toggleBookmark(cafe.id)
+    const next = toggleBookmark(cafe)
     setBookmarked(next)
   }
 

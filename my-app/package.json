@@ -4,7 +4,7 @@
   "private": true,
   "homepage": "https://github.com/2025-2026-Capstone-Design/cafe_front/",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

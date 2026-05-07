@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getBookmarks } from '@/lib/bookmarks'
-import { MOCK_CAFES } from '@/lib/mockData'
 import { Cafe } from '@/lib/types'
 import CafeCard from '@/components/CafeCard'
 
@@ -12,9 +11,7 @@ export default function BookmarkPage() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const ids = getBookmarks()
-    const cafes = MOCK_CAFES.filter(c => ids.includes(c.id))  // ids and c.id are both strings
-    setBookmarkedCafes(cafes)
+    setBookmarkedCafes(getBookmarks())
     setMounted(true)
   }, [])
 
@@ -37,10 +34,7 @@ export default function BookmarkPage() {
             <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
           </svg>
           <p className="text-[14px] text-neutral-400">아직 찜한 카페가 없어요</p>
-          <Link
-            href="/"
-            className="mt-1 text-[13px] text-violet-600 font-medium hover:underline"
-          >
+          <Link href="/" className="mt-1 text-[13px] text-violet-600 font-medium hover:underline">
             카페 둘러보기 →
           </Link>
         </div>

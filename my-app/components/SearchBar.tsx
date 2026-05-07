@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { KeywordId } from './FilterPanel'
 import { ASPECT_LABELS, AspectKey } from '@/lib/types'
-import { MOCK_CAFES } from '@/lib/mockData'
 import { getRecentSearches, addRecentSearch, removeRecentSearch } from '@/lib/recentSearches'
 
 interface Props {
@@ -45,14 +44,7 @@ export default function SearchBar({
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const autoComplete = query.trim()
-    ? MOCK_CAFES.filter(c =>
-        c.name.toLowerCase().includes(query.toLowerCase()) ||
-        c.address.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 5)
-    : []
-
-  const showDropdown = focused && (autoComplete.length > 0 || recents.length > 0)
+  const showDropdown = focused && recents.length > 0
 
   const handleSelect = (q: string) => {
     onQueryChange(q)
@@ -129,22 +121,6 @@ export default function SearchBar({
       {showDropdown && (
         <div ref={dropdownRef}
           className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-lg z-50 overflow-hidden">
-
-          {/* 자동완성 */}
-          {autoComplete.length > 0 && (
-            <div>
-              {autoComplete.map(cafe => (
-                <button key={cafe.id} onClick={() => handleSelect(cafe.name)}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-neutral-50 text-left">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8">
-                    <circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/>
-                  </svg>
-                  <span className="text-[13px] text-neutral-800">{cafe.name}</span>
-                  <span className="text-[11px] text-neutral-400 ml-auto truncate max-w-[120px]">{cafe.address}</span>
-                </button>
-              ))}
-            </div>
-          )}
 
           {/* 최근 검색어 */}
           {!query.trim() && recents.length > 0 && (

@@ -2,9 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { MOCK_CAFES } from '@/lib/mockData'
 import { Cafe, AspectKey, ASPECT_LABELS, Keyword } from '@/lib/types'
-import { rankCafes } from '@/lib/ranking'
 import { getPreferences } from '@/lib/preferences'
 import CafeCard from '@/components/CafeCard'
 import SearchBar from '@/components/SearchBar'
@@ -97,11 +95,9 @@ export default function HomePage() {
     }
   }, [router])
 
-const popularKeywords = useMemo(() => getPopularKeywords(MOCK_CAFES), [])
+const popularKeywords = useMemo(() => getPopularKeywords(apiCafes), [apiCafes])
 
-  const results = apiCafes.length > 0
-    ? apiCafes
-    : rankCafes(MOCK_CAFES, activeAspects.length > 0 ? activeAspects : preferences)
+  const results = apiCafes
 
   const statusText = useMemo(() => {
     const parts: string[] = []

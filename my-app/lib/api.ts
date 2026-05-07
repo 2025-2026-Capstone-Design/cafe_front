@@ -80,7 +80,7 @@ export async function searchCafes(
     page: String(page),
     limit: String(limit),
   })
-  const res = await fetch(`${BASE_URL}/cafe/search?${params}`)
+  const res = await fetch(`${BASE_URL}/cafe/search?${params}`, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Search failed: ${res.status}`)
   return res.json() as Promise<SearchResponse>
 }
@@ -97,7 +97,7 @@ export async function searchCafesAdvanced(
     page: String(page),
     limit: String(limit),
   })
-  const res = await fetch(`${BASE_URL}/cafe/search/advanced?${params}`)
+  const res = await fetch(`${BASE_URL}/cafe/search/advanced?${params}`, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Advanced search failed: ${res.status}`)
   return res.json() as Promise<SearchResponse>
 }

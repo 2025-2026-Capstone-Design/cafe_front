@@ -46,6 +46,14 @@ export interface Amenities {
   kids:        boolean
 }
 
+export interface Review {
+  id: number
+  author: string
+  date: string
+  text: string
+  rating: number
+}
+
 export interface Cafe {
   id:           string
   name:         string

@@ -2,7 +2,6 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { MOCK_CAFES } from '@/lib/mockData'
 import { Cafe, AspectKey, Keyword } from '@/lib/types'
 import FilterPanel, { KeywordId } from '@/components/FilterPanel'
 import { getPreferences } from '@/lib/preferences'
@@ -119,14 +118,14 @@ function MapPage() {
       : searchCafes(vector, 1, 50)
     fetch$
       .then(data => setCafes(data.cafes.map(mapSearchItem)))
-      .catch(() => setCafes(MOCK_CAFES))
+      .catch((e) => { console.error('[fetchCafes] 에러:', e); setCafes([]) })
       .finally(() => setLoadingCafes(false))
   }, [preferences])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // pinnedAspects 변경(카테고리 클릭) 또는 초기 로드 시 API 호출
   useEffect(() => {
+    console.log('[useEffect] pinnedAspects 변경으로 검색')
     fetchCafes(pinnedAspects, [])
-  }, [pinnedAspects.join(','), preferences.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pinnedAspects.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -272,34 +271,33 @@ function MapPage() {
     }
   }, [initMap])
 
-  const fetchCafesRef = useRef(fetchCafes)
-  const pinnedAspectsRef = useRef(pinnedAspects)
-  useEffect(() => { fetchCafesRef.current = fetchCafes }, [fetchCafes])
-  useEffect(() => { pinnedAspectsRef.current = pinnedAspects }, [pinnedAspects])
-
-  const handleApply = useCallback((selected: Set<KeywordId>) => {
-    const ids = [...selected]
-    console.log('[handleApply] called, ids:', ids)
-    setAppliedKeywords(ids)
-    setFilterOpen(false)
-    const aspects = [...new Set([...pinnedAspectsRef.current, ...ids.map(id => id.split(':')[0] as AspectKey)])]
-    const keywords = ids.map(id => id.split(':')[1])
-    console.log('[handleApply] aspects:', aspects, 'keywords:', keywords)
-    fetchCafesRef.current(aspects, keywords)
-  }, [])
+  const handleApply = (selected: Set<KeywordId>) => {
+    try {
+      console.log('[handleApply] CALLED, selected size:', selected.size)
+      const ids = [...selected]
+      console.log('[handleApply] ids:', ids)
+      const aspects = [...new Set([...pinnedAspects, ...ids.map(id => id.split(':')[0] as AspectKey)])]
+      const keywords = ids.map(id => id.split(':')[1])
+      console.log('[handleApply] keywords:', keywords)
+      setAppliedKeywords(ids)
+      setFilterOpen(false)
+      fetchCafes(aspects, keywords)
+    } catch (e) {
+      console.error('[handleApply] 에러:', e)
+    }
+  }
 
   const handleReset = () => {
     setAppliedKeywords([])
     setPinnedAspects([])
     setFilterOpen(false)
-    fetchCafes([], [])
   }
 
   const handleRemoveKeyword = (id: KeywordId) => {
     const next = appliedKeywords.filter(k => k !== id)
-    setAppliedKeywords(next)
     const aspects = [...new Set([...pinnedAspects, ...next.map(k => k.split(':')[0] as AspectKey)])]
     const keywords = next.map(k => k.split(':')[1])
+    setAppliedKeywords(next)
     fetchCafes(aspects, keywords)
   }
 

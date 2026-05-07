@@ -1,11 +1,9 @@
 'use client'
 import { ReactNode, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { MOCK_CAFES } from '@/lib/mockData'
-import { Cafe, ASPECT_LABELS, ALL_ASPECTS } from '@/lib/types'
+import { Cafe, Review, ASPECT_LABELS, ALL_ASPECTS } from '@/lib/types'
 import { isBookmarked, toggleBookmark } from '@/lib/bookmarks'
 import RadarChart from '@/components/RadarChart'
-import { MOCK_REVIEWS, Review } from '@/lib/mockReviews'
 import { getCafeDetail } from '@/lib/api'
 import { mapDetail } from '@/lib/mappers'
 
@@ -52,14 +50,8 @@ export default function CafeDetailPage() {
         }))
         setReviews(apiReviews)
       })
-      .catch((err) => {
-        console.error('[CafeDetail] API 실패, cafeId:', cafeId, err)
-        const fallback = MOCK_CAFES.find(c => c.id === cafeId) ?? null
-        setCafe(fallback)
-        if (fallback) {
-          setBookmarked(isBookmarked(fallback.id))
-          setReviews(MOCK_REVIEWS[fallback.id] ?? [])
-        }
+      .catch(() => {
+        setCafe(null)
       })
       .finally(() => setLoading(false))
   }, [cafeId])
@@ -83,7 +75,7 @@ export default function CafeDetailPage() {
   const activeAspects = ALL_ASPECTS.filter(k => (cafe.aspectScores[k] ?? 0) > 0)
 
   const handleBookmark = () => {
-    const next = toggleBookmark(cafe.id)
+    const next = toggleBookmark(cafe)
     setBookmarked(next)
   }
 
