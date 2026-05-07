@@ -4,12 +4,18 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Cafe, AspectKey, ASPECT_LABELS, Keyword } from '@/lib/types'
 import { getPreferences } from '@/lib/preferences'
-import CafeCard from '@/components/CafeCard'
 import SearchBar from '@/components/SearchBar'
 import FilterPanel, { KeywordId } from '@/components/FilterPanel'
 import Link from 'next/link'
 import { searchCafes, aspectsToVector } from '@/lib/api'
 import { mapSearchItem } from '@/lib/mappers'
+import { HeroBanner } from '@/components/HeroBanner'
+import { HomeCategorySection } from '@/components/HomeCategorySection'
+import { HomeCafeListSection } from '@/components/HomeCafeListSection'
+import { AbsaFeatureSection } from '@/components/AbsaFeatureSection'
+import { ReviewAnalysisPreview } from '@/components/ReviewAnalysisPreview'
+import { LocationBanner } from '@/components/LocationBanner'
+import { HomeFooter } from '@/components/HomeFooter'
 
 function getPopularKeywords(cafes: Cafe[], limit = 8): Keyword[] {
   const map = new Map<string, Keyword>()
@@ -31,15 +37,6 @@ function getPopularKeywords(cafes: Cafe[], limit = 8): Keyword[] {
     .slice(0, limit)
 }
 
-const CATEGORY_GRID: { key: AspectKey; icon: string }[] = [
-  { key: 'coffee', icon: '☕' },
-  { key: 'bakery', icon: '🥐' },
-  { key: 'cake',   icon: '🎂' },
-  { key: 'bingsu', icon: '🍧' },
-  { key: 'space',  icon: '🪑' },
-  { key: 'vibe',   icon: '✨' },
-]
-
 export default function HomePage() {
   const router = useRouter()
   const [query, setQuery] = useState('')
@@ -51,7 +48,6 @@ export default function HomePage() {
 
   useEffect(() => { setPreferences(getPreferences()) }, [])
 
-  // preferences가 정해지면 API로 personalized 결과 가져오기
   useEffect(() => {
     setLoading(true)
     const vector = preferences.length > 0
@@ -63,24 +59,19 @@ export default function HomePage() {
       .finally(() => setLoading(false))
   }, [preferences.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const activeAspects = useMemo<AspectKey[]>(() => {
-    const keys = appliedKeywords.map(id => id.split(':')[0] as AspectKey)
-    return [...new Set(keys)]
-  }, [appliedKeywords])
-
   const handleApply = useCallback((selected: Set<KeywordId>) => {
     setAppliedKeywords([...selected])
     setFilterOpen(false)
-    if (selected.size > 0) router.push('/search')
+    if (selected.size > 0) {
+      const params = new URLSearchParams()
+      params.set('keywords', [...selected].join(','))
+      router.push(`/search?${params}`)
+    }
   }, [router])
 
   const handleReset = useCallback(() => {
     setAppliedKeywords([])
     setFilterOpen(false)
-  }, [])
-
-  const handleQueryChange = useCallback((v: string) => {
-    setQuery(v)
   }, [])
 
   const handleRemoveKeyword = useCallback((id: KeywordId) => {
@@ -95,131 +86,102 @@ export default function HomePage() {
     }
   }, [router])
 
-const popularKeywords = useMemo(() => getPopularKeywords(apiCafes), [apiCafes])
+  const popularKeywords = useMemo(() => getPopularKeywords(apiCafes), [apiCafes])
 
-  const results = apiCafes
+  const sectionTitle = useMemo(() => {
+    if (preferences.length > 0) {
+      return preferences.slice(0, 2).map(k => ASPECT_LABELS[k].split('/')[0]).join(' · ') + ' 취향 카페'
+    }
+    return '추천 카페'
+  }, [preferences])
 
-  const statusText = useMemo(() => {
-    const parts: string[] = []
-    if (activeAspects.length > 0) parts.push('필터 적용됨')
-    if (query) parts.push(`"${query}"`)
-    return parts.length > 0 ? `${parts.join(' · ')} · ${results.length}개` : `전체 ${results.length}개`
-  }, [activeAspects, query, results.length])
+  const sectionSubtitle = preferences.length > 0
+    ? 'ABSA 분석 결과 취향에 맞는 긍정 리뷰가 많은 카페'
+    : 'ABSA 분석 결과 긍정 리뷰가 가장 많은 카페'
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 min-h-screen">
-      {/* 헤더 */}
-      <div className="mb-6">
-        {preferences.length > 0 ? (
-          <div className="mb-4">
-            <p className="text-[12px] text-violet-500 font-medium mb-1">맞춤 추천</p>
-            <h1 className="font-serif text-2xl font-semibold text-neutral-900 tracking-tight mb-1">
-              {preferences.slice(0, 2).map(k => ASPECT_LABELS[k].split('/')[0]).join(' · ')} 취향 카페
-            </h1>
-            <Link href="/onboarding" className="text-[12px] text-violet-500 hover:underline">
-              취향 재설정 →
-            </Link>
-          </div>
-        ) : (
-          <div className="mb-4">
-            <h1 className="font-serif text-2xl font-semibold text-neutral-900 tracking-tight mb-1">
-              근처 카페 추천
-            </h1>
-            <Link href="/onboarding" className="text-[12px] text-violet-500 hover:underline">
-              취향을 설정하면 맞춤 추천을 받을 수 있어요 →
-            </Link>
-          </div>
-        )}
+    <div className="min-h-screen bg-background">
+      {/* 히어로 배너 */}
+      <HeroBanner />
 
-        {/* 검색창 + 필터 버튼 */}
-        <SearchBar
-          query={query}
-          onQueryChange={handleQueryChange}
-          filterOpen={filterOpen}
-          onFilterToggle={() => setFilterOpen((v) => !v)}
-          appliedCount={appliedKeywords.length}
-          appliedKeywords={appliedKeywords}
-          onRemoveKeyword={handleRemoveKeyword}
-          onSearch={handleSearch}
-        />
+      {/* 검색 섹션 */}
+      <section className="py-6 bg-background border-b border-border">
+        <div className="max-w-3xl mx-auto px-4">
+          {preferences.length > 0 ? (
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                <span className="text-primary font-medium">맞춤 추천</span> · {sectionTitle}
+              </p>
+              <Link href="/onboarding" className="text-xs text-primary hover:underline">
+                취향 재설정 →
+              </Link>
+            </div>
+          ) : (
+            <div className="mb-3">
+              <Link href="/onboarding" className="text-xs text-primary hover:underline">
+                취향을 설정하면 맞춤 추천을 받을 수 있어요 →
+              </Link>
+            </div>
+          )}
 
-        {/* 필터 패널 */}
-        {filterOpen && (
-          <FilterPanel
-            applied={appliedKeywords}
-            onApply={handleApply}
-            onReset={handleReset}
+          <SearchBar
+            query={query}
+            onQueryChange={setQuery}
+            filterOpen={filterOpen}
+            onFilterToggle={() => setFilterOpen(v => !v)}
+            appliedCount={appliedKeywords.length}
+            appliedKeywords={appliedKeywords}
+            onRemoveKeyword={handleRemoveKeyword}
+            onSearch={handleSearch}
           />
-        )}
 
-        {/* 인기 키워드 칩 */}
-        {!filterOpen && (
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {popularKeywords.map(kw => (
-              <button
-                key={kw.text}
-                onClick={() => router.push(`/search?q=${encodeURIComponent(kw.text)}`)}
-                className="text-[12px] px-3 py-1 rounded-full border border-neutral-200 bg-white text-neutral-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-colors"
-              >
-                {kw.text}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+          {filterOpen && (
+            <FilterPanel
+              applied={appliedKeywords}
+              onApply={handleApply}
+              onReset={handleReset}
+            />
+          )}
 
-      {/* 카테고리 그리드 */}
-      {!filterOpen && (
-        <div className="mb-6">
-          <p className="text-[12px] text-neutral-400 mb-2.5">카테고리</p>
-          <div className="grid grid-cols-6 gap-2">
-            {CATEGORY_GRID.map(({ key, icon }) => (
-              <button
-                key={key}
-                onClick={() => router.push(`/search?aspect=${key}`)}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-neutral-100 bg-white hover:border-violet-200 hover:bg-violet-50 transition-colors"
-              >
-                <span className="text-lg">{icon}</span>
-                <span className="text-[9px] text-neutral-500 leading-tight text-center">
-                  {ASPECT_LABELS[key].split('/')[0]}
-                </span>
-              </button>
-            ))}
-          </div>
+          {!filterOpen && popularKeywords.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {popularKeywords.map(kw => (
+                <button
+                  key={kw.text}
+                  onClick={() => router.push(`/search?q=${encodeURIComponent(kw.text)}`)}
+                  className="text-xs px-3 py-1 rounded-full border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-colors"
+                >
+                  {kw.text}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </section>
 
-      {/* 결과 수 */}
-      {!query.trim() && (
-        <p className="text-[12px] text-neutral-400 mb-4">{statusText}</p>
-      )}
+      {/* 카테고리 섹션 */}
+      <HomeCategorySection />
 
-      {/* 카드 그리드 */}
-      <div className="min-h-[400px]">
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-neutral-100 overflow-hidden animate-pulse">
-                <div className="aspect-[4/3] bg-neutral-100" />
-                <div className="p-3.5 space-y-2">
-                  <div className="h-3 bg-neutral-100 rounded w-2/3" />
-                  <div className="h-2 bg-neutral-100 rounded w-1/2" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : results.length === 0 ? (
-          <p className="text-center text-[14px] text-neutral-400 py-12">
-            조건에 맞는 카페가 없어요
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {results.map((cafe, i) => (
-              <CafeCard key={cafe.id} cafe={cafe} rank={i + 1} />
-            ))}
-          </div>
-        )}
-      </div>
-    </main>
+      {/* 추천 카페 리스트 */}
+      <HomeCafeListSection
+        title={sectionTitle}
+        subtitle={sectionSubtitle}
+        cafes={apiCafes}
+        viewAllLink="/search"
+        loading={loading}
+      />
+
+      {/* ABSA 기능 소개 */}
+      <AbsaFeatureSection />
+
+      {/* 리뷰 분석 미리보기 */}
+      <ReviewAnalysisPreview />
+
+      {/* 지역 검색 배너 */}
+      <LocationBanner />
+
+      {/* 푸터 */}
+      <HomeFooter />
+    </div>
   )
 }

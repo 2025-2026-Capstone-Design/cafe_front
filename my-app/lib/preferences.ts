@@ -15,10 +15,10 @@ export function getPreferences(): AspectKey[] {
 }
 
 export function calcMatchRate(
-  aspectScores: Record<AspectKey, number>,
+  aspectScores: Record<AspectKey, number> | undefined | null,
   preferences: AspectKey[],
 ): number | null {
-  if (preferences.length === 0) return null
+  if (preferences.length === 0 || !aspectScores) return null
   const avg =
     preferences.reduce((s, k) => s + (aspectScores[k] ?? 0), 0) / preferences.length
   return Math.round(avg)

@@ -41,7 +41,7 @@ export default function BookmarkPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {bookmarkedCafes.map((cafe, i) => (
-            <CafeCard key={cafe.id} cafe={cafe} rank={i + 1} />
+            <CafeCard key={cafe.id ?? i} cafe={cafe} rank={i + 1} />
           ))}
         </div>
       )}

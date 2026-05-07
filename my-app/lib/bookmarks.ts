@@ -5,7 +5,9 @@ const BOOKMARK_KEY = 'cafe_bookmarks'
 export function getBookmarks(): Cafe[] {
   if (typeof window === 'undefined') return []
   const raw = localStorage.getItem(BOOKMARK_KEY)
-  return raw ? (JSON.parse(raw) as Cafe[]) : []
+  if (!raw) return []
+  const list = JSON.parse(raw) as Cafe[]
+  return list.filter(c => c.id && c.name)
 }
 
 export function isBookmarked(id: string): boolean {

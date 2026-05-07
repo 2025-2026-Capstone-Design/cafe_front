@@ -13,7 +13,7 @@ interface Props {
 }
 
 function getTopAspects(cafe: Cafe, n = 2): AspectKey[] {
-  return (Object.entries(cafe.aspectScores) as [AspectKey, number][])
+  return (Object.entries(cafe.aspectScores ?? {}) as [AspectKey, number][])
     .filter(([, score]) => score > 0)
     .sort(([, a], [, b]) => b - a)
     .slice(0, n)
@@ -114,7 +114,7 @@ export default function CafeCard({ cafe, rank }: Props) {
 
         {/* 리뷰 수 */}
         <p className="text-[11px] text-neutral-400">
-          리뷰 {cafe.reviewCount.toLocaleString()}개
+          리뷰 {(cafe.reviewCount ?? 0).toLocaleString()}개
         </p>
       </div>
     </Link>

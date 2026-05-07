@@ -79,9 +79,14 @@ function MapPage() {
   const initialQuery = searchParams.get('q') ?? ''
   const initialAspect = searchParams.get('aspect') as AspectKey | null
 
+  const initialKeywordsParam = searchParams.get('keywords') ?? ''
+  const initialKeywords: KeywordId[] = initialKeywordsParam
+    ? (initialKeywordsParam.split(',') as KeywordId[])
+    : []
+
   const [query, setQuery] = useState(initialQuery)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>([])
+  const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>(initialKeywords)
   const [pinnedAspects, setPinnedAspects] = useState<AspectKey[]>(
     initialAspect ? [initialAspect] : []
   )
@@ -123,8 +128,12 @@ function MapPage() {
   }, [preferences])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    console.log('[useEffect] pinnedAspects 변경으로 검색')
-    fetchCafes(pinnedAspects, [])
+    const aspects = [...new Set([
+      ...pinnedAspects,
+      ...initialKeywords.map(id => id.split(':')[0] as AspectKey),
+    ])]
+    const keywords = initialKeywords.map(id => id.split(':')[1])
+    fetchCafes(aspects, keywords)
   }, [pinnedAspects.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => {

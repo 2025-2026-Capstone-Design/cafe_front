@@ -31,7 +31,7 @@ export function rankCafes(cafes: Cafe[], activeAspects: AspectKey[]): Cafe[] {
  * 카드에 보여줄 대표 키워드 (긍정 2개 + 부정 1개, 빈도순)
  */
 export function getRepresentativeKeywords(cafe: Cafe, max = 3) {
-  const all = Object.values(cafe.keywords).flat()
+  const all = Object.values(cafe.keywords ?? {}).flat()
   const pos = all.filter((k) => k.sentiment === 'pos').sort((a, b) => b.count - a.count)
   const neg = all.filter((k) => k.sentiment === 'neg').sort((a, b) => b.count - a.count)
 

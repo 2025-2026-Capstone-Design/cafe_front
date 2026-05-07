@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from '@/components/Navbar'
+import { HomeHeader } from "@/components/HomeHeader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cafe Review ABSA",
-  description: "Capstone Project",
+  title: "cafun - AI 카페 추천",
+  description: "ABSA 기반 AI 카페 추천 서비스",
 };
 
 export default function RootLayout({
@@ -25,9 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full">
-      {/* 폰트 변수를 body에 입히고 font-sans 클래스를 추가하면 스타일이 먹힙니다 */}
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-full flex flex-col antialiased`}>
-        <Navbar />
+        <HomeHeader />
         {children}
       </body>
     </html>
