@@ -87,6 +87,7 @@ function MapPage() {
   const [query, setQuery] = useState(initialQuery)
   const [filterOpen, setFilterOpen] = useState(false)
   const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>(initialKeywords)
+  const [appliedConveniences, setAppliedConveniences] = useState<string[]>([])
   const [pinnedAspects, setPinnedAspects] = useState<AspectKey[]>(
     initialAspect ? [initialAspect] : []
   )
@@ -107,20 +108,18 @@ function MapPage() {
     ])]
   ), [pinnedAspects, appliedKeywords])
 
-  const fetchCafes = useCallback((aspects: AspectKey[], keywords: string[]) => {
+  const fetchCafes = useCallback((aspects: AspectKey[], keywords: string[], conveniences: string[] = []) => {
     setLoadingCafes(true)
     const vector = aspects.length > 0
       ? aspectsToVector(aspects)
       : preferences.length > 0
         ? aspectsToVector(preferences)
         : new Array(12).fill(0) as number[]
-    console.log('[fetchCafes] keywords:', keywords, 'vector:', vector)
     const fetch$ = keywords.length > 0
-      ? searchCafesAdvanced(vector, keywords, 1, 50).then(data => {
-          console.log('[fetchCafes] advanced result count:', data.cafes.length)
-          return data.cafes.length > 0 ? data : searchCafes(vector, 1, 50)
+      ? searchCafesAdvanced(vector, keywords, 1, 50, conveniences).then(data => {
+          return data.cafes.length > 0 ? data : searchCafes(vector, 1, 50, conveniences)
         })
-      : searchCafes(vector, 1, 50)
+      : searchCafes(vector, 1, 50, conveniences)
     fetch$
       .then(data => setCafes(data.cafes.map(mapSearchItem)))
       .catch((e) => { console.error('[fetchCafes] 에러:', e); setCafes([]) })
@@ -280,24 +279,20 @@ function MapPage() {
     }
   }, [initMap])
 
-  const handleApply = (selected: Set<KeywordId>) => {
-    try {
-      console.log('[handleApply] CALLED, selected size:', selected.size)
-      const ids = [...selected]
-      console.log('[handleApply] ids:', ids)
-      const aspects = [...new Set([...pinnedAspects, ...ids.map(id => id.split(':')[0] as AspectKey)])]
-      const keywords = ids.map(id => id.split(':')[1])
-      console.log('[handleApply] keywords:', keywords)
-      setAppliedKeywords(ids)
-      setFilterOpen(false)
-      fetchCafes(aspects, keywords)
-    } catch (e) {
-      console.error('[handleApply] 에러:', e)
-    }
+  const handleApply = (selected: Set<KeywordId>, conveniences: Set<string>) => {
+    const ids = [...selected]
+    const convArr = [...conveniences]
+    const aspects = [...new Set([...pinnedAspects, ...ids.map(id => id.split(':')[0] as AspectKey)])]
+    const keywords = ids.map(id => id.split(':')[1])
+    setAppliedKeywords(ids)
+    setAppliedConveniences(convArr)
+    setFilterOpen(false)
+    fetchCafes(aspects, keywords, convArr)
   }
 
   const handleReset = () => {
     setAppliedKeywords([])
+    setAppliedConveniences([])
     setPinnedAspects([])
     setFilterOpen(false)
   }
@@ -307,7 +302,15 @@ function MapPage() {
     const aspects = [...new Set([...pinnedAspects, ...next.map(k => k.split(':')[0] as AspectKey)])]
     const keywords = next.map(k => k.split(':')[1])
     setAppliedKeywords(next)
-    fetchCafes(aspects, keywords)
+    fetchCafes(aspects, keywords, appliedConveniences)
+  }
+
+  const handleRemoveConvenience = (apiName: string) => {
+    const next = appliedConveniences.filter(c => c !== apiName)
+    const aspects = [...new Set([...pinnedAspects, ...appliedKeywords.map(k => k.split(':')[0] as AspectKey)])]
+    const keywords = appliedKeywords.map(k => k.split(':')[1])
+    setAppliedConveniences(next)
+    fetchCafes(aspects, keywords, next)
   }
 
   const closeDetail = useCallback(() => {
@@ -319,20 +322,27 @@ function MapPage() {
   return (
     <div className="flex h-[calc(100vh-56px)] overflow-hidden font-sans">
       {/* ── 왼쪽 목록 패널 (항상 표시) ── */}
-      <div className="w-[320px] shrink-0 flex flex-col border-r border-neutral-200 bg-white">
+      <div className="w-[340px] shrink-0 flex flex-col border-r border-neutral-200 bg-white">
         <div className="p-3">
           <SearchBar
             query={query}
             onQueryChange={setQuery}
             filterOpen={filterOpen}
             onFilterToggle={() => setFilterOpen(v => !v)}
-            appliedCount={appliedKeywords.length}
+            appliedCount={appliedKeywords.length + appliedConveniences.length}
             appliedKeywords={appliedKeywords}
             onRemoveKeyword={handleRemoveKeyword}
+            appliedConveniences={appliedConveniences}
+            onRemoveConvenience={handleRemoveConvenience}
           />
           {filterOpen && (
             <div className="overflow-y-auto max-h-[60vh] border-t border-neutral-100">
-              <FilterPanel applied={appliedKeywords} onApply={handleApply} onReset={handleReset} />
+              <FilterPanel
+                applied={appliedKeywords}
+                appliedConveniences={appliedConveniences}
+                onApply={handleApply}
+                onReset={handleReset}
+              />
             </div>
           )}
         </div>

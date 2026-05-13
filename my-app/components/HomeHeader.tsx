@@ -36,6 +36,9 @@ export function HomeHeader() {
               <MapPin className="h-4 w-4" />
               검색
             </Link>
+            <Link href="/compare" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              비교
+            </Link>
             <Link href="/mypage">
               <Button variant="outline" size="sm" className="gap-2">
                 <User className="h-4 w-4" />
@@ -67,6 +70,9 @@ export function HomeHeader() {
               <Link href="/search" className="text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => setIsMenuOpen(false)}>
                 <MapPin className="h-4 w-4" />
                 검색
+              </Link>
+              <Link href="/compare" className="text-sm font-medium text-muted-foreground hover:text-foreground" onClick={() => setIsMenuOpen(false)}>
+                카페 비교
               </Link>
               <Link href="/mypage" className="text-sm font-medium text-muted-foreground hover:text-foreground" onClick={() => setIsMenuOpen(false)}>
                 마이페이지

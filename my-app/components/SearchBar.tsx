@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { KeywordId } from './FilterPanel'
+import { KeywordId, CONVENIENCE_OPTIONS } from './FilterPanel'
 import { ASPECT_LABELS, AspectKey } from '@/lib/types'
 import { getRecentSearches, addRecentSearch, removeRecentSearch } from '@/lib/recentSearches'
 
@@ -14,12 +14,15 @@ interface Props {
   appliedCount: number
   appliedKeywords: KeywordId[]
   onRemoveKeyword: (id: KeywordId) => void
+  appliedConveniences?: string[]
+  onRemoveConvenience?: (apiName: string) => void
 }
 
 export default function SearchBar({
   query, onQueryChange,
   filterOpen, onFilterToggle,
   appliedCount, appliedKeywords, onRemoveKeyword, onSearch,
+  appliedConveniences, onRemoveConvenience,
 }: Props) {
   const [focused, setFocused] = useState(false)
   const [recents, setRecents] = useState<string[]>([])
@@ -97,7 +100,7 @@ export default function SearchBar({
 
         <button
           onClick={onFilterToggle}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-[13px] transition-colors whitespace-nowrap
+          className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-[13px] transition-colors whitespace-nowrap
             ${filterOpen || appliedCount > 0
               ? 'bg-violet-700 border-violet-700 text-white'
               : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'
@@ -149,7 +152,7 @@ export default function SearchBar({
       )}
 
       {/* 적용된 필터 태그 */}
-      {appliedKeywords.length > 0 && (
+      {(appliedKeywords.length > 0 || (appliedConveniences?.length ?? 0) > 0) && (
         <div className="flex flex-wrap gap-1.5 mt-2.5">
           {appliedKeywords.map((id) => {
             const [asp, kw] = id.split(':') as [AspectKey, string]
@@ -159,6 +162,19 @@ export default function SearchBar({
                 {ASPECT_LABELS[asp]} · {kw}
                 <button onClick={() => onRemoveKeyword(id)}
                   className="text-violet-400 hover:text-violet-700 leading-none text-[14px]">
+                  ×
+                </button>
+              </span>
+            )
+          })}
+          {appliedConveniences?.map((apiName) => {
+            const option = CONVENIENCE_OPTIONS.find(o => o.apiName === apiName)
+            return (
+              <span key={apiName}
+                className="flex items-center gap-1 text-[12px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {option?.label ?? apiName}
+                <button onClick={() => onRemoveConvenience?.(apiName)}
+                  className="text-emerald-400 hover:text-emerald-700 leading-none text-[14px]">
                   ×
                 </button>
               </span>

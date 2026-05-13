@@ -9,6 +9,7 @@ import FilterPanel, { KeywordId } from '@/components/FilterPanel'
 import Link from 'next/link'
 import { searchCafes, aspectsToVector } from '@/lib/api'
 import { mapSearchItem } from '@/lib/mappers'
+import { setCafeCache } from '@/lib/cafeCache'
 import { HeroBanner } from '@/components/HeroBanner'
 import { HomeCategorySection } from '@/components/HomeCategorySection'
 import { HomeCafeListSection } from '@/components/HomeCafeListSection'
@@ -54,12 +55,16 @@ export default function HomePage() {
       ? aspectsToVector(preferences)
       : new Array(12).fill(0) as number[]
     searchCafes(vector, 1, 50)
-      .then(data => setApiCafes(data.cafes.map(mapSearchItem)))
+      .then(data => {
+        const cafes = data.cafes.map(mapSearchItem)
+        setCafeCache(cafes)
+        setApiCafes(cafes)
+      })
       .catch(() => setApiCafes([]))
       .finally(() => setLoading(false))
   }, [preferences.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleApply = useCallback((selected: Set<KeywordId>) => {
+  const handleApply = useCallback((selected: Set<KeywordId>, _conveniences: Set<string>) => {
     setAppliedKeywords([...selected])
     setFilterOpen(false)
     if (selected.size > 0) {
@@ -138,6 +143,7 @@ export default function HomePage() {
           {filterOpen && (
             <FilterPanel
               applied={appliedKeywords}
+              appliedConveniences={[]}
               onApply={handleApply}
               onReset={handleReset}
             />

@@ -74,12 +74,14 @@ export async function searchCafes(
   aspectVector: number[],
   page = 1,
   limit = 50,
+  conveniences: string[] = [],
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({
     aspectVector: aspectVector.join(','),
     page: String(page),
     limit: String(limit),
   })
+  if (conveniences.length > 0) params.set('conveniences', conveniences.join(','))
   const res = await fetch(`${BASE_URL}/cafe/search?${params}`, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Search failed: ${res.status}`)
   return res.json() as Promise<SearchResponse>
@@ -90,6 +92,7 @@ export async function searchCafesAdvanced(
   keywords: string[],
   page = 1,
   limit = 50,
+  conveniences: string[] = [],
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({
     aspectVector: aspectVector.join(','),
@@ -97,6 +100,7 @@ export async function searchCafesAdvanced(
     page: String(page),
     limit: String(limit),
   })
+  if (conveniences.length > 0) params.set('conveniences', conveniences.join(','))
   const res = await fetch(`${BASE_URL}/cafe/search/advanced?${params}`, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Advanced search failed: ${res.status}`)
   return res.json() as Promise<SearchResponse>
