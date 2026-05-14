@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Star, MapPin, ThumbsUp } from "lucide-react"
+import { Star, MapPin, Sparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Cafe, AspectKey, ASPECT_LABELS } from "@/lib/types"
 
@@ -39,9 +39,8 @@ export function HomeCafeCard({ cafe }: HomeCafeCardProps) {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
         <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-full">
-          <ThumbsUp className="h-3 w-3 text-primary" />
+          <Sparkles className="h-3 w-3 text-primary" />
           <span className="text-xs font-semibold text-primary">{cafe.score}%</span>
-          <span className="text-xs text-muted-foreground">긍정</span>
         </div>
       </div>
       <div className="p-4">

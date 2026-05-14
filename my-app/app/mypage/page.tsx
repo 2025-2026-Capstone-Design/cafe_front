@@ -5,15 +5,46 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   User, Settings, Heart, Star, Bell, Shield, LogOut,
-  ChevronRight, Edit2, Coffee, MessageSquare, Award, TrendingUp,
+  ChevronRight, Edit2, Coffee, MessageSquare, Award, TrendingUp, Trash2,
 } from 'lucide-react'
-import { getUser, clearUser, User as AuthUser } from '@/lib/auth'
+import { getUser, clearUser, getToken, User as AuthUser } from '@/lib/auth'
 import { getBookmarks } from '@/lib/bookmarks'
 import { getPreferences } from '@/lib/preferences'
 import { ALL_ASPECTS, ASPECT_LABELS, AspectKey, Cafe } from '@/lib/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { getUserReviews, deleteReview, getCafeDetail, ApiReview } from '@/lib/api'
+import { getCafeCache } from '@/lib/cafeCache'
+import { REVIEW_ASPECT_MAP } from '@/lib/mappers'
+
+function getPositiveAspects(review: ApiReview): AspectKey[] {
+  return ALL_ASPECTS.filter(k => (review[REVIEW_ASPECT_MAP[k]] as number) === 1)
+}
+
+const CAFE_IMG_PLACEHOLDER = 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=160&h=160&fit=crop'
+
+async function fetchCafeInfoForReviews(
+  reviews: ApiReview[],
+): Promise<Record<string, { name: string; imageUrl: string }>> {
+  const uniqueIds = [...new Set(reviews.map(r => r.cafeId))]
+  const uniqueIdSet = new Set(uniqueIds)
+  const infoMap: Record<string, { name: string; imageUrl: string }> = {}
+  for (const cafe of getCafeCache()) {
+    if (uniqueIdSet.has(cafe.id)) {
+      infoMap[cafe.id] = { name: cafe.name, imageUrl: cafe.imageUrl ?? '' }
+    }
+  }
+  const missing = uniqueIds.filter(id => !infoMap[id])
+  await Promise.all(
+    missing.map(id =>
+      getCafeDetail(id)
+        .then(d => { infoMap[id] = { name: d.name, imageUrl: d.imageUrls?.[0] ?? '' } })
+        .catch(() => { infoMap[id] = { name: '알 수 없는 카페', imageUrl: '' } })
+    )
+  )
+  return infoMap
+}
 
 const ASPECT_ICONS: Record<AspectKey, string> = {
   coffee: '☕', bakery: '🥐', cake: '🎂', cookie: '🍪',
@@ -43,6 +74,9 @@ export default function MyPage() {
   const [preferences, setPreferences] = useState<AspectKey[]>([])
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState('bookmarks')
+  const [myReviews, setMyReviews] = useState<ApiReview[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [cafeInfoMap, setCafeInfoMap] = useState<Record<string, { name: string; imageUrl: string }>>({})
 
   useEffect(() => {
     setUser(getUser())
@@ -50,6 +84,30 @@ export default function MyPage() {
     setPreferences(getPreferences())
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (activeTab !== 'reviews') return
+    if (myReviews.length > 0) return
+    const token = getToken()
+    if (!token) return
+    setReviewsLoading(true)
+    getUserReviews(token)
+      .then(async ({ reviews }) => {
+        setMyReviews(reviews)
+        const infoMap = await fetchCafeInfoForReviews(reviews)
+        setCafeInfoMap(infoMap)
+      })
+      .catch(() => setMyReviews([]))
+      .finally(() => setReviewsLoading(false))
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDeleteReview = async (review: ApiReview) => {
+    const token = getToken()
+    if (!token) return
+    if (!confirm('이 리뷰를 삭제할까요?')) return
+    await deleteReview(review.cafeId, review.id, token)
+    setMyReviews(prev => prev.filter(r => r.id !== review.id))
+  }
 
   const handleLogout = () => {
     clearUser()
@@ -129,8 +187,9 @@ export default function MyPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="bookmarks">찜한 카페</TabsTrigger>
+            <TabsTrigger value="reviews">내 리뷰</TabsTrigger>
             <TabsTrigger value="preferences">내 취향</TabsTrigger>
             <TabsTrigger value="achievements">업적</TabsTrigger>
           </TabsList>
@@ -171,6 +230,82 @@ export default function MyPage() {
                     </div>
                   </Link>
                 ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* My Reviews Tab */}
+          <TabsContent value="reviews" className="mt-4">
+            {reviewsLoading ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">불러오는 중...</div>
+            ) : myReviews.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">아직 작성한 리뷰가 없어요</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {myReviews.map(review => {
+                  const cafeInfo = cafeInfoMap[review.cafeId]
+                  const positives = getPositiveAspects(review)
+                  return (
+                    <div key={review.id} className="bg-card rounded-xl border border-border overflow-hidden">
+                      {/* 카페 헤더 */}
+                      <Link href={`/cafe/${review.cafeId}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors border-b border-border">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={cafeInfo?.imageUrl || CAFE_IMG_PLACEHOLDER}
+                          alt={cafeInfo?.name ?? ''}
+                          className="w-12 h-12 rounded-lg shrink-0 object-cover bg-muted"
+                          onError={(e) => { (e.target as HTMLImageElement).src = CAFE_IMG_PLACEHOLDER }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {cafeInfo?.name ?? '카페 정보 불러오는 중…'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(review.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                      </Link>
+
+                      {/* 리뷰 본문 */}
+                      <div className="px-4 py-3">
+                        {review.reviewText ? (
+                          <p className="text-sm text-foreground leading-relaxed line-clamp-3 mb-3">
+                            {review.reviewText}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic mb-3">작성한 리뷰 내용이 없어요</p>
+                        )}
+
+                        {/* 긍정 항목 뱃지 */}
+                        {positives.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {positives.map(key => (
+                              <span key={key} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span>{ASPECT_ICONS[key]}</span>
+                                {ASPECT_LABELS[key].split('/')[0]}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 삭제 버튼 */}
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleDeleteReview(review)}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </TabsContent>

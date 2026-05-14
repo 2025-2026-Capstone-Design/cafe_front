@@ -27,7 +27,7 @@ export interface SearchResponse {
 export interface ApiReview {
   id: number
   cafeId: string
-  userId: string
+  userId: number
   reviewText: string
   coffeeBeverage?: number | null
   bakeryBread?: number | null
@@ -121,4 +121,92 @@ export async function getReviews(
   const res = await fetch(`${BASE_URL}/cafe/${cafeId}/reviews?${params}`)
   if (!res.ok) throw new Error(`Reviews fetch failed: ${res.status}`)
   return res.json() as Promise<{ reviews: ApiReview[] }>
+}
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+async function throwWithBody(res: Response, label: string): Promise<never> {
+  let body: unknown
+  try { body = await res.json() } catch { body = null }
+  console.error(`[api] ${label} ${res.status}:`, body)
+  const msg = (body as { message?: unknown })?.message
+  throw new ApiError(res.status, Array.isArray(msg) ? msg.join(', ') : String(msg ?? res.status))
+}
+
+export async function register(
+  nickname: string,
+  email: string,
+  password: string,
+): Promise<{ id: string; nickname: string; email: string }> {
+  const res = await fetch(`${BASE_URL}/users/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nickname, email, password }),
+  })
+  if (!res.ok) return throwWithBody(res, 'register')
+  return res.json() as Promise<{ id: string; nickname: string; email: string }>
+}
+
+export async function apiLogin(
+  email: string,
+  password: string,
+): Promise<{ access_token: string }> {
+  const res = await fetch(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) return throwWithBody(res, 'login')
+  const body = await res.json() as Record<string, unknown>
+  const token = (body.accessToken ?? body.access_token ?? body.token) as string
+  return { access_token: token }
+}
+
+export async function getUserReviews(
+  token: string,
+  page = 1,
+  limit = 20,
+): Promise<{ reviews: ApiReview[]; totalCount: number }> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  const res = await fetch(`${BASE_URL}/users/me/reviews?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return throwWithBody(res, 'getUserReviews')
+  return res.json() as Promise<{ reviews: ApiReview[]; totalCount: number }>
+}
+
+export async function deleteReview(
+  cafeId: string,
+  reviewId: number,
+  token: string,
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/cafe/${cafeId}/reviews/${reviewId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok && res.status !== 204) return throwWithBody(res, 'deleteReview')
+}
+
+export type PostReviewBody = Omit<ApiReview, 'id' | 'cafeId' | 'userId' | 'createdAt'>
+
+export async function postReview(
+  cafeId: string,
+  data: PostReviewBody,
+  token: string,
+): Promise<ApiReview> {
+  const res = await fetch(`${BASE_URL}/cafe/${cafeId}/reviews`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) return throwWithBody(res, 'postReview')
+  return res.json() as Promise<ApiReview>
 }

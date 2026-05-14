@@ -1,19 +1,25 @@
 "use client"
 
 import { useState } from "react"
-import { Star, ThumbsUp, MessageSquare } from "lucide-react"
+import { Star, PenLine } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Review } from "@/lib/types"
+import { MOCK_REVIEWS } from "@/lib/mockReviews"
+import Link from "next/link"
 
 interface Props {
   reviews: Review[]
   totalCount: number
+  cafeId: string
+  cafeName: string
 }
 
-export function CafeDetailReviews({ reviews, totalCount }: Props) {
+export function CafeDetailReviews({ reviews, totalCount, cafeId, cafeName }: Props) {
   const [expanded, setExpanded] = useState<number | null>(null)
 
-  if (reviews.length === 0) return null
+  const displayReviews = reviews.length > 0
+    ? reviews
+    : process.env.NODE_ENV === 'development' ? MOCK_REVIEWS : []
 
   return (
     <div className="bg-card rounded-xl p-6 border border-border">
@@ -24,10 +30,16 @@ export function CafeDetailReviews({ reviews, totalCount }: Props) {
             총 {(totalCount ?? 0).toLocaleString()}개 리뷰
           </p>
         </div>
+        <Link href={`/review/write?cafeId=${cafeId}&cafeName=${encodeURIComponent(cafeName)}`}>
+          <Button size="sm" className="gap-1.5">
+            <PenLine className="h-3.5 w-3.5" />
+            리뷰 쓰기
+          </Button>
+        </Link>
       </div>
 
       <div className="space-y-4">
-        {reviews.map(review => (
+        {displayReviews.map(review => (
           <div key={review.id} className="p-4 bg-secondary/50 rounded-lg hover:bg-secondary/70 transition-colors">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -68,12 +80,6 @@ export function CafeDetailReviews({ reviews, totalCount }: Props) {
         ))}
       </div>
 
-      <div className="mt-6 pt-6 border-t border-border">
-        <Button className="w-full" variant="outline">
-          <MessageSquare className="h-4 w-4 mr-2" />
-          리뷰 작성하기
-        </Button>
-      </div>
     </div>
   )
 }

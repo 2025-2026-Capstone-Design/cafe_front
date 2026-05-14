@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { mockSignup } from '@/lib/auth'
+import { register, apiLogin } from '@/lib/api'
+import { setUser, setToken } from '@/lib/auth'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -22,22 +23,33 @@ export default function SignupPage() {
       setError('모든 항목을 입력해주세요.')
       return
     }
+    if (name.trim().length < 2 || name.trim().length > 20) {
+      setError('닉네임은 2자 이상 20자 이하여야 해요.')
+      return
+    }
     if (password !== confirm) {
       setError('비밀번호가 일치하지 않아요.')
       return
     }
-    if (password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 해요.')
+    const pwPattern = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).+$/
+    if (!pwPattern.test(password)) {
+      setError('비밀번호는 영문, 숫자, 특수문자를 모두 포함해야 해요.')
       return
     }
 
     setLoading(true)
-    // TODO: DB 연동 시 API 호출로 교체
-    await new Promise(r => setTimeout(r, 400))
-    mockSignup(name.trim(), email.trim())
-    setLoading(false)
-
-    router.push('/onboarding')
+    try {
+      const user = await register(name.trim(), email.trim(), password.trim())
+      setUser({ id: user.id, name: user.nickname, email: user.email })
+      // 가입 즉시 자동 로그인 — 토큰 저장
+      const { access_token } = await apiLogin(email.trim(), password.trim())
+      setToken(access_token)
+      router.push('/onboarding')
+    } catch {
+      setError('회원가입에 실패했어요. 이미 사용 중인 이메일일 수 있어요.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -57,7 +69,7 @@ export default function SignupPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-[13px] font-medium text-neutral-700 mb-1.5">
-            이름
+            닉네임 <span className="text-neutral-400 font-normal">(2~20자)</span>
           </label>
           <input
             type="text"
@@ -93,7 +105,7 @@ export default function SignupPage() {
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            placeholder="6자 이상"
+            placeholder="영문+숫자+특수문자 포함"
             className="w-full px-3.5 py-3 rounded-xl border border-neutral-200 text-[14px] text-neutral-900
               placeholder:text-neutral-300 focus:outline-none focus:border-violet-400 focus:ring-2
               focus:ring-violet-100 transition-colors"

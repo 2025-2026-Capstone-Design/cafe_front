@@ -32,9 +32,9 @@ export default function CafeDetailPage() {
         setCafe(mapped)
         setBookmarked(isBookmarked(mapped.id))
         const rawReviews = Array.isArray(detail.reviews?.reviews) ? detail.reviews.reviews : []
-        const apiReviews: Review[] = rawReviews.map((r: { id?: number; userId?: string; createdAt?: string; reviewText?: string }, i: number) => ({
+        const apiReviews: Review[] = rawReviews.map((r: { id?: number; userId?: number | string; createdAt?: string; reviewText?: string }, i: number) => ({
           id: r.id ?? i,
-          author: r.userId ?? '익명',
+          author: r.userId != null ? String(r.userId) : '익명',
           date: r.createdAt ? r.createdAt.slice(0, 10) : '',
           text: r.reviewText ?? '',
           rating: 4,
@@ -87,7 +87,7 @@ export default function CafeDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             <CafeDetailInfo cafe={cafe} bookmarked={bookmarked} onBookmark={handleBookmark} />
             <CafeDetailRadarChart aspectScores={cafe.aspectScores} />
-            <CafeDetailReviews reviews={reviews} totalCount={cafe.reviewCount ?? 0} />
+            <CafeDetailReviews reviews={reviews} totalCount={cafe.reviewCount ?? 0} cafeId={cafeId} cafeName={cafe.name} />
           </div>
 
           {/* Sidebar */}

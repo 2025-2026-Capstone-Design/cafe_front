@@ -6,6 +6,7 @@ import { Cafe, AspectKey, ASPECT_LABELS, ALL_ASPECTS } from '@/lib/types'
 import { isBookmarked, toggleBookmark } from '@/lib/bookmarks'
 import { getCafeDetail } from '@/lib/api'
 import { mapDetail } from '@/lib/mappers'
+import { CafeDetailRadarChart } from './cafe-detail/CafeDetailRadarChart'
 
 interface Props { cafeId: string }
 
@@ -123,54 +124,33 @@ export default function CafeDetailPanel({ cafeId }: Props) {
         </>
       )}
 
-      {/* 측면 점수 */}
-      {activeAspects.length > 0 && (
-        <>
-          <p className="text-[11px] font-semibold text-neutral-700 mb-2">측면별 분석</p>
-          <div className="space-y-2 mb-4">
-            {activeAspects.map(key => {
-              const score = cafe.aspectScores[key]
-              const color = score >= 70 ? 'bg-emerald-400' : score >= 40 ? 'bg-neutral-300' : 'bg-orange-400'
-              return (
+      {/* 측면별 레이더 차트 */}
+      <CafeDetailRadarChart aspectScores={cafe.aspectScores} compact />
+
+      {/* 측면별 키워드 */}
+      {activeAspects.filter(k => (cafe.keywords[k]?.length ?? 0) > 0).length > 0 && (
+        <div className="mt-4">
+          <p className="text-[11px] font-semibold text-neutral-700 mb-2">키워드</p>
+          <div className="space-y-3">
+            {activeAspects
+              .filter(k => (cafe.keywords[k]?.length ?? 0) > 0)
+              .map(key => (
                 <div key={key}>
-                  <div className="flex justify-between mb-0.5">
-                    <span className="text-[11px] text-neutral-600">{ASPECT_LABELS[key]}</span>
-                    <span className="text-[11px] text-neutral-400">{score}</span>
-                  </div>
-                  <div className="h-1 bg-neutral-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }}/>
+                  <p className="text-[10px] text-neutral-400 mb-1">{ASPECT_LABELS[key]}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {cafe.keywords[key]!.map(kw => (
+                      <span key={kw.text} className={`text-[10px] px-2 py-0.5 rounded-full border
+                        ${kw.sentiment === 'pos'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-orange-50 text-orange-800 border-orange-200'}`}>
+                        {kw.text} <span className="opacity-40">{kw.count}</span>
+                      </span>
+                    ))}
                   </div>
                 </div>
-              )
-            })}
+              ))}
           </div>
-
-          {/* 측면별 키워드 */}
-          {activeAspects.filter(k => (cafe.keywords[k]?.length ?? 0) > 0).length > 0 && (
-            <>
-              <p className="text-[11px] font-semibold text-neutral-700 mb-2">키워드</p>
-              <div className="space-y-3">
-                {activeAspects
-                  .filter(k => (cafe.keywords[k]?.length ?? 0) > 0)
-                  .map(key => (
-                    <div key={key}>
-                      <p className="text-[10px] text-neutral-400 mb-1">{ASPECT_LABELS[key]}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {cafe.keywords[key]!.map(kw => (
-                          <span key={kw.text} className={`text-[10px] px-2 py-0.5 rounded-full border
-                            ${kw.sentiment === 'pos'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : 'bg-orange-50 text-orange-800 border-orange-200'}`}>
-                            {kw.text} <span className="opacity-40">{kw.count}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </>
-          )}
-        </>
+        </div>
       )}
     </div>
   )

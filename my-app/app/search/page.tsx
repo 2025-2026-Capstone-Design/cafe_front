@@ -115,13 +115,22 @@ function MapPage() {
       : preferences.length > 0
         ? aspectsToVector(preferences)
         : new Array(12).fill(0) as number[]
+    const fallbackVector = aspectsToVector(preferences)
     const fetch$ = keywords.length > 0
       ? searchCafesAdvanced(vector, keywords, 1, 50, conveniences).then(data => {
           return data.cafes.length > 0 ? data : searchCafes(vector, 1, 50, conveniences)
         })
       : searchCafes(vector, 1, 50, conveniences)
     fetch$
-      .then(data => setCafes(data.cafes.map(mapSearchItem)))
+      .then(data => {
+        if (data.cafes.length > 0) {
+          setCafes(data.cafes.map(mapSearchItem))
+        } else {
+          // 결과 없을 때 취향/전체 기준 fallback
+          return searchCafes(fallbackVector, 1, 50, conveniences)
+            .then(fallback => setCafes(fallback.cafes.map(mapSearchItem)))
+        }
+      })
       .catch((e) => { console.error('[fetchCafes] 에러:', e); setCafes([]) })
       .finally(() => setLoadingCafes(false))
   }, [preferences])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -336,7 +345,7 @@ function MapPage() {
             onRemoveConvenience={handleRemoveConvenience}
           />
           {filterOpen && (
-            <div className="overflow-y-auto max-h-[60vh] border-t border-neutral-100">
+            <div className="overflow-y-auto max-h-[40vh] border-t border-neutral-100">
               <FilterPanel
                 applied={appliedKeywords}
                 appliedConveniences={appliedConveniences}
@@ -352,7 +361,7 @@ function MapPage() {
           {activeAspects.length > 0 && <span className="text-violet-500">· 필터 적용됨</span>}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {loadingCafes ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />

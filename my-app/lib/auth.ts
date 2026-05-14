@@ -1,4 +1,5 @@
 const USER_KEY = 'cafe_user'
+const TOKEN_KEY = 'cafe_token'
 
 export interface User {
   id: string
@@ -18,18 +19,26 @@ export function setUser(user: User): void {
 
 export function clearUser(): void {
   localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(TOKEN_KEY)
 }
 
-// DB 연동 전 mock — 추후 API 호출로 교체
-export function mockSignup(name: string, email: string): User {
-  const user: User = { id: crypto.randomUUID(), name, email }
-  setUser(user)
-  return user
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(TOKEN_KEY)
 }
 
-export function mockLogin(email: string): User | null {
-  // 저장된 유저 이메일과 비교 (실제 auth는 서버에서)
-  const saved = getUser()
-  if (saved && saved.email === email) return saved
-  return null
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function userFromToken(token: string): Partial<User> {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>
+    return {
+      id: String(payload.sub ?? ''),
+      email: String(payload.email ?? ''),
+    }
+  } catch {
+    return {}
+  }
 }

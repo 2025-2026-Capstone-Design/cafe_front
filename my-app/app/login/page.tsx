@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { mockLogin, setUser } from '@/lib/auth'
+import { apiLogin, ApiError } from '@/lib/api'
+import { getUser, setUser, setToken, userFromToken } from '@/lib/auth'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,18 +23,24 @@ export default function LoginPage() {
     }
 
     setLoading(true)
-    // TODO: DB 연동 시 API 호출로 교체
-    await new Promise(r => setTimeout(r, 400))
-    const user = mockLogin(email.trim())
-    setLoading(false)
-
-    if (!user) {
-      setError('이메일 또는 비밀번호가 올바르지 않아요.')
-      return
+    try {
+      const { access_token } = await apiLogin(email.trim(), password.trim())
+      setToken(access_token)
+      // 기존 유저 정보 없으면 토큰에서 파싱
+      if (!getUser()) {
+        const partial = userFromToken(access_token)
+        setUser({ id: partial.id ?? '', name: email.trim(), email: partial.email ?? email.trim() })
+      }
+      router.push('/')
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError('이메일 또는 비밀번호가 올바르지 않아요.')
+      } else {
+        setError('로그인 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.')
+      }
+    } finally {
+      setLoading(false)
     }
-
-    setUser(user)
-    router.push('/')
   }
 
   return (

@@ -8,6 +8,23 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { AspectKey, ASPECT_LABELS, ALL_ASPECTS } from "@/lib/types"
+import { postReview, PostReviewBody, ApiError } from "@/lib/api"
+import { getToken, clearUser } from "@/lib/auth"
+
+const ASPECT_FIELD: Record<AspectKey, keyof Omit<PostReviewBody, 'reviewText'>> = {
+  coffee: 'coffeeBeverage',
+  bakery: 'bakeryBread',
+  cake: 'cake',
+  cookie: 'cookieBaked',
+  bingsu: 'bingsuFruit',
+  dessert: 'otherDessert',
+  space: 'spaceFacility',
+  vibe: 'atmosphereVibe',
+  service: 'service',
+  price: 'priceValue',
+  gift: 'giftPackaging',
+  crowd: 'crowdWaiting',
+}
 
 const ASPECT_ICONS: Record<AspectKey, string> = {
   coffee: "☕", bakery: "🥐", cake: "🎂", cookie: "🍪",
@@ -31,6 +48,7 @@ function ReviewWriteContent() {
     Object.fromEntries(ALL_ASPECTS.map(a => [a, null])) as Record<AspectKey, AspectRating>
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleAspectRating = (aspectId: AspectKey, value: AspectRating) => {
     setAspectRatings(prev => ({
@@ -55,10 +73,33 @@ function ReviewWriteContent() {
 
   const handleSubmit = async () => {
     if (rating === 0 || content.length < 10) return
+    setSubmitError(null)
+    const token = getToken()
+    console.log('[review] token:', token ? token.slice(0, 20) + '...' : 'NULL')
+    if (!token) {
+      setSubmitError('로그인이 필요합니다.')
+      return
+    }
     setIsSubmitting(true)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    if (cafeId) router.push(`/cafe/${cafeId}`)
-    else router.push("/")
+    try {
+      // 백엔드: positive=1, neutral=2, negative=3 (@IsIn([1,2,3]))
+      const scores = Object.fromEntries(
+        ALL_ASPECTS
+          .filter(k => aspectRatings[k] !== null)
+          .map(k => [ASPECT_FIELD[k], aspectRatings[k] === 'positive' ? 1 : aspectRatings[k] === 'neutral' ? 2 : 3])
+      )
+      await postReview(cafeId, { reviewText: content, ...scores } as PostReviewBody, token)
+      if (cafeId) router.push(`/cafe/${cafeId}`)
+      else router.push("/")
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setSubmitError('인증이 만료됐습니다. 다시 로그인해주세요.')
+      } else {
+        setSubmitError('리뷰 등록에 실패했어요. 잠시 후 다시 시도해주세요.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const positiveAspects = ALL_ASPECTS.filter(k => aspectRatings[k] === "positive")
@@ -76,6 +117,9 @@ function ReviewWriteContent() {
             <span className="text-sm">뒤로</span>
           </button>
           <h1 className="font-semibold">리뷰 작성</h1>
+          {submitError && (
+            <span className="text-xs text-red-500 max-w-[160px] text-right leading-tight">{submitError}</span>
+          )}
           <Button
             size="sm"
             disabled={rating === 0 || content.length < 10 || isSubmitting}
@@ -269,7 +313,10 @@ function ReviewWriteContent() {
       </main>
 
       {/* Mobile Fixed Bottom */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border space-y-2">
+        {submitError && (
+          <p className="text-xs text-red-500 text-center">{submitError}</p>
+        )}
         <Button
           className="w-full"
           disabled={rating === 0 || content.length < 10 || isSubmitting}

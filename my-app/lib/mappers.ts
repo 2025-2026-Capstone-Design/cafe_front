@@ -22,7 +22,7 @@ function scoreFromAspectScores(scores: Record<AspectKey, number>): number {
     : 0
 }
 
-const REVIEW_ASPECT_MAP: Record<AspectKey, keyof ApiReview> = {
+export const REVIEW_ASPECT_MAP: Record<AspectKey, keyof ApiReview> = {
   coffee:  'coffeeBeverage',
   bakery:  'bakeryBread',
   cake:    'cake',

@@ -11,7 +11,9 @@ import { searchCafes, aspectsToVector } from '@/lib/api'
 import { mapSearchItem } from '@/lib/mappers'
 import { setCafeCache } from '@/lib/cafeCache'
 import { HeroBanner } from '@/components/HeroBanner'
+import { PromoBanners } from '@/components/PromoBanners'
 import { HomeCategorySection } from '@/components/HomeCategorySection'
+import { SecondaryBanners } from '@/components/SecondaryBanners'
 import { HomeCafeListSection } from '@/components/HomeCafeListSection'
 import { AbsaFeatureSection } from '@/components/AbsaFeatureSection'
 import { ReviewAnalysisPreview } from '@/components/ReviewAnalysisPreview'
@@ -109,6 +111,9 @@ export default function HomePage() {
       {/* 히어로 배너 */}
       <HeroBanner />
 
+      {/* 프로모 배너 그리드 */}
+      <PromoBanners />
+
       {/* 검색 섹션 */}
       <section className="py-6 bg-background border-b border-border">
         <div className="max-w-3xl mx-auto px-4">
@@ -167,6 +172,9 @@ export default function HomePage() {
 
       {/* 카테고리 섹션 */}
       <HomeCategorySection />
+
+      {/* 테마별 탐색 배너 */}
+      <SecondaryBanners />
 
       {/* 추천 카페 리스트 */}
       <HomeCafeListSection

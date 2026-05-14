@@ -73,7 +73,7 @@ export default function SearchBar({
     <div className="relative">
       {/* 검색창 + 필터 버튼 */}
       <div className="flex gap-2 items-center">
-        <div className={`flex-1 flex items-center gap-2 border rounded-xl px-3.5 py-2.5 bg-white transition-colors
+        <div className={`flex-1 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white transition-colors
           ${focused ? 'border-violet-400 ring-2 ring-violet-100' : 'border-neutral-300'}`}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-neutral-400 shrink-0">
             <circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/>
@@ -100,7 +100,7 @@ export default function SearchBar({
 
         <button
           onClick={onFilterToggle}
-          className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-[13px] transition-colors whitespace-nowrap
+          className={`shrink-0 flex items-center gap-1 px-3 py-2 rounded-xl border text-[12px] transition-colors whitespace-nowrap
             ${filterOpen || appliedCount > 0
               ? 'bg-violet-700 border-violet-700 text-white'
               : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'
@@ -151,17 +151,17 @@ export default function SearchBar({
         </div>
       )}
 
-      {/* 적용된 필터 태그 */}
+      {/* 적용된 필터 태그 — 한 줄 가로 스크롤 */}
       {(appliedKeywords.length > 0 || (appliedConveniences?.length ?? 0) > 0) && (
-        <div className="flex flex-wrap gap-1.5 mt-2.5">
+        <div className="flex gap-1.5 mt-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
           {appliedKeywords.map((id) => {
             const [asp, kw] = id.split(':') as [AspectKey, string]
             return (
               <span key={id}
-                className="flex items-center gap-1 text-[12px] px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+                className="shrink-0 flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
                 {ASPECT_LABELS[asp]} · {kw}
                 <button onClick={() => onRemoveKeyword(id)}
-                  className="text-violet-400 hover:text-violet-700 leading-none text-[14px]">
+                  className="text-violet-400 hover:text-violet-700 leading-none text-[13px]">
                   ×
                 </button>
               </span>
@@ -171,10 +171,10 @@ export default function SearchBar({
             const option = CONVENIENCE_OPTIONS.find(o => o.apiName === apiName)
             return (
               <span key={apiName}
-                className="flex items-center gap-1 text-[12px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                className="shrink-0 flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                 {option?.label ?? apiName}
                 <button onClick={() => onRemoveConvenience?.(apiName)}
-                  className="text-emerald-400 hover:text-emerald-700 leading-none text-[14px]">
+                  className="text-emerald-400 hover:text-emerald-700 leading-none text-[13px]">
                   ×
                 </button>
               </span>

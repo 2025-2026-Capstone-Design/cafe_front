@@ -9,6 +9,7 @@ import { AspectKey, ASPECT_LABELS } from "@/lib/types"
 
 interface Props {
   aspectScores: Record<AspectKey, number>
+  compact?: boolean
 }
 
 function getStatus(score: number) {
@@ -17,7 +18,7 @@ function getStatus(score: number) {
   return               { icon: ThumbsDown, color: "text-red-500",   bg: "bg-red-50",    label: "부정" }
 }
 
-export function CafeDetailRadarChart({ aspectScores }: Props) {
+export function CafeDetailRadarChart({ aspectScores, compact = false }: Props) {
   const entries = (Object.entries(aspectScores ?? {}) as [AspectKey, number][])
     .filter(([, v]) => v > 0)
 
@@ -28,6 +29,52 @@ export function CafeDetailRadarChart({ aspectScores }: Props) {
     score: value,
     fullMark: 100,
   }))
+
+  const radarChart = (
+    <div className={compact ? "h-[260px] w-full" : "h-[320px] w-full"}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
+          <PolarGrid />
+          <PolarAngleAxis dataKey="aspect" tick={{ fontSize: compact ? 10 : 11 }} tickLine={false} />
+          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} tickCount={5} />
+          <Tooltip
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null
+              const score = payload[0].value as number
+              const status = getStatus(score)
+              return (
+                <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                  <p className="font-medium text-foreground">{payload[0].payload.aspect}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <status.icon className={`h-4 w-4 ${status.color}`} />
+                    <span className={`font-bold ${status.color}`}>{score}점</span>
+                    <span className="text-sm text-muted-foreground">({status.label})</span>
+                  </div>
+                </div>
+              )
+            }}
+          />
+          <Radar
+            name="점수"
+            dataKey="score"
+            stroke="hsl(var(--primary))"
+            fill="hsl(var(--primary))"
+            fillOpacity={0.3}
+            strokeWidth={2}
+          />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+
+  if (compact) {
+    return (
+      <div className="bg-card rounded-xl p-4 border border-border">
+        <p className="text-[11px] font-semibold text-neutral-700 mb-2">ABSA 감성 분석</p>
+        {radarChart}
+      </div>
+    )
+  }
 
   const sorted = [...entries].sort((a, b) => b[1] - a[1])
   const topAspects = sorted.slice(0, 3)
@@ -43,41 +90,7 @@ export function CafeDetailRadarChart({ aspectScores }: Props) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Radar Chart */}
-        <div className="h-[320px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="aspect" tick={{ fontSize: 11 }} tickLine={false} />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} tickCount={5} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const score = payload[0].value as number
-                  const status = getStatus(score)
-                  return (
-                    <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                      <p className="font-medium text-foreground">{payload[0].payload.aspect}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <status.icon className={`h-4 w-4 ${status.color}`} />
-                        <span className={`font-bold ${status.color}`}>{score}점</span>
-                        <span className="text-sm text-muted-foreground">({status.label})</span>
-                      </div>
-                    </div>
-                  )
-                }}
-              />
-              <Radar
-                name="점수"
-                dataKey="score"
-                stroke="hsl(var(--primary))"
-                fill="hsl(var(--primary))"
-                fillOpacity={0.3}
-                strokeWidth={2}
-              />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
+        {radarChart}
 
         {/* Score Details */}
         <div className="space-y-5">
