@@ -14,8 +14,8 @@ export interface CafeSearchItem {
   description: string
   topKeywords: TopKeyword[]
   aspectVector?: number[]  // 12-dim, from cafe_aspect_vectors via cache
-  lat?: number             // backend stores longitude here (~127)
-  lon?: number             // backend stores latitude here (~37)
+  lat?: number
+  lon?: number
 }
 
 export interface SearchResponse {
@@ -47,8 +47,8 @@ export interface ApiReview {
 export interface CafeDetail extends CafeSearchItem {
   microReview: string
   address: string
-  lat: number   // backend returns 127.xx here (actually longitude)
-  lon: number   // backend returns 37.xx here (actually latitude)
+  lat: number
+  lon: number
   businessHours: string
   convenience: Record<string, boolean>
   informationFacilitie: string[]

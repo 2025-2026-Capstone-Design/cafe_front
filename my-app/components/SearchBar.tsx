@@ -73,7 +73,7 @@ export default function SearchBar({
     <div className="relative">
       {/* 검색창 + 필터 버튼 */}
       <div className="flex gap-2 items-center">
-        <div className={`flex-1 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white transition-colors
+        <div className={`flex-1 min-w-0 flex items-center gap-2 border rounded-xl px-3 py-2 bg-white transition-colors
           ${focused ? 'border-violet-400 ring-2 ring-violet-100' : 'border-neutral-300'}`}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-neutral-400 shrink-0">
             <circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/>

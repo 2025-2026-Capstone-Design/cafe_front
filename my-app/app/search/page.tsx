@@ -84,10 +84,15 @@ function MapPage() {
     ? (initialKeywordsParam.split(',') as KeywordId[])
     : []
 
+  const initialConveniencesParam = searchParams.get('conveniences') ?? ''
+  const initialConveniences: string[] = initialConveniencesParam
+    ? initialConveniencesParam.split(',')
+    : []
+
   const [query, setQuery] = useState(initialQuery)
   const [filterOpen, setFilterOpen] = useState(false)
   const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>(initialKeywords)
-  const [appliedConveniences, setAppliedConveniences] = useState<string[]>([])
+  const [appliedConveniences, setAppliedConveniences] = useState<string[]>(initialConveniences)
   const [pinnedAspects, setPinnedAspects] = useState<AspectKey[]>(
     initialAspect ? [initialAspect] : []
   )
@@ -115,22 +120,11 @@ function MapPage() {
       : preferences.length > 0
         ? aspectsToVector(preferences)
         : new Array(12).fill(0) as number[]
-    const fallbackVector = aspectsToVector(preferences)
     const fetch$ = keywords.length > 0
-      ? searchCafesAdvanced(vector, keywords, 1, 50, conveniences).then(data => {
-          return data.cafes.length > 0 ? data : searchCafes(vector, 1, 50, conveniences)
-        })
+      ? searchCafesAdvanced(vector, keywords, 1, 50, conveniences)
       : searchCafes(vector, 1, 50, conveniences)
     fetch$
-      .then(data => {
-        if (data.cafes.length > 0) {
-          setCafes(data.cafes.map(mapSearchItem))
-        } else {
-          // 결과 없을 때 취향/전체 기준 fallback
-          return searchCafes(fallbackVector, 1, 50, conveniences)
-            .then(fallback => setCafes(fallback.cafes.map(mapSearchItem)))
-        }
-      })
+      .then(data => { setCafes(data.cafes.map(mapSearchItem)) })
       .catch((e) => { console.error('[fetchCafes] 에러:', e); setCafes([]) })
       .finally(() => setLoadingCafes(false))
   }, [preferences])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -141,7 +135,7 @@ function MapPage() {
       ...initialKeywords.map(id => id.split(':')[0] as AspectKey),
     ])]
     const keywords = initialKeywords.map(id => id.split(':')[1])
-    fetchCafes(aspects, keywords)
+    fetchCafes(aspects, keywords, appliedConveniences)
   }, [pinnedAspects.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => {
@@ -297,6 +291,13 @@ function MapPage() {
     setAppliedConveniences(convArr)
     setFilterOpen(false)
     fetchCafes(aspects, keywords, convArr)
+
+    const params = new URLSearchParams()
+    if (query.trim()) params.set('q', query.trim())
+    if (ids.length > 0) params.set('keywords', ids.join(','))
+    else if (pinnedAspects.length > 0) params.set('aspect', pinnedAspects[0])
+    if (convArr.length > 0) params.set('conveniences', convArr.join(','))
+    router.replace(`/search?${params.toString()}`)
   }
 
   const handleReset = () => {
@@ -304,6 +305,8 @@ function MapPage() {
     setAppliedConveniences([])
     setPinnedAspects([])
     setFilterOpen(false)
+    fetchCafes([], [], [])
+    router.replace('/search')
   }
 
   const handleRemoveKeyword = (id: KeywordId) => {
@@ -331,7 +334,7 @@ function MapPage() {
   return (
     <div className="flex h-[calc(100vh-56px)] overflow-hidden font-sans">
       {/* ── 왼쪽 목록 패널 (항상 표시) ── */}
-      <div className="w-[340px] shrink-0 flex flex-col border-r border-neutral-200 bg-white">
+      <div className="w-[340px] shrink-0 flex flex-col border-r border-neutral-200 bg-white overflow-x-hidden">
         <div className="p-3">
           <SearchBar
             query={query}
@@ -345,7 +348,7 @@ function MapPage() {
             onRemoveConvenience={handleRemoveConvenience}
           />
           {filterOpen && (
-            <div className="overflow-y-auto max-h-[40vh] border-t border-neutral-100">
+            <div className="border-t border-neutral-100">
               <FilterPanel
                 applied={appliedKeywords}
                 appliedConveniences={appliedConveniences}

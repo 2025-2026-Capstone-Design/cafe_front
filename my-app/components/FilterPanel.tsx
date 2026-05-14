@@ -19,14 +19,16 @@ export const ASPECT_KEYWORDS: Record<AspectKey, string[]> = {
 }
 
 export const CONVENIENCE_OPTIONS = [
-  { key: 'wifi',        label: 'Wi-Fi',    apiName: '와이파이' },
+  { key: 'wifi',        label: 'Wi-Fi',    apiName: '무선 인터넷' },
   { key: 'parking',     label: '주차',     apiName: '주차' },
-  { key: 'outlet',      label: '콘센트',   apiName: '콘센트' },
-  { key: 'pet',         label: '반려동물', apiName: '반려동물' },
-  { key: 'takeout',     label: '포장',     apiName: '포장' },
-  { key: 'group',       label: '단체석',   apiName: '단체석' },
+  { key: 'pet',         label: '반려동물', apiName: '반려동물 동반' },
+  { key: 'group',       label: '단체 이용', apiName: '단체 이용 가능' },
+  { key: 'kids',        label: '유아시설', apiName: '유아시설' },
   { key: 'reservation', label: '예약',     apiName: '예약' },
-  { key: 'kids',        label: '키즈',     apiName: '키즈' },
+  { key: 'takeout',     label: '포장',     apiName: '포장' },
+  { key: 'delivery',    label: '배달',     apiName: '배달' },
+  { key: 'payment',     label: '간편결제', apiName: '간편결제' },
+  { key: 'seating',     label: '좌식/입식', apiName: '좌식/입식 선택' },
 ]
 
 export type KeywordId = `${AspectKey}:${string}`
@@ -41,7 +43,9 @@ interface Props {
 }
 
 export default function FilterPanel({ applied, appliedConveniences, onApply, onReset }: Props) {
-  const [curTab, setCurTab] = useState<TabKey>('coffee')
+  const [curTab, setCurTab] = useState<TabKey>(
+    appliedConveniences.length > 0 && applied.length === 0 ? 'conveniences' : 'coffee'
+  )
   const [pending, setPending] = useState<Set<KeywordId>>(new Set(applied))
   const [pendingConveniences, setPendingConveniences] = useState<Set<string>>(new Set(appliedConveniences))
 
@@ -72,8 +76,8 @@ export default function FilterPanel({ applied, appliedConveniences, onApply, onR
   }
 
   return (
-    <div className="mt-2 border border-neutral-200 rounded-xl bg-white overflow-hidden">
-      <div className="p-4">
+    <div className="mt-2 border border-neutral-200 rounded-xl bg-white overflow-hidden flex flex-col">
+      <div className="p-4 overflow-y-auto max-h-[50vh]">
         {/* 측면 탭 */}
         <div className="flex flex-wrap gap-1.5 mb-3.5">
           {ALL_ASPECTS.map((key) => {
@@ -156,7 +160,7 @@ export default function FilterPanel({ applied, appliedConveniences, onApply, onR
       </div>
 
       {/* 하단 버튼 */}
-      <div className="flex justify-between items-center px-4 py-3 bg-neutral-50 border-t border-neutral-100">
+      <div className="shrink-0 flex justify-between items-center px-4 py-3 bg-neutral-50 border-t border-neutral-100">
         <button
           onClick={handleReset}
           className="text-[12px] text-neutral-400 hover:text-neutral-700"

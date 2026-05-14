@@ -99,8 +99,8 @@ export function mapSearchItem(item: CafeSearchItem): Cafe {
     keywords:     {},
     amenities:    { ...EMPTY_AMENITIES },
     topKeywords:  keywords,
-    lat:          item.lon,   // backend lat/lon fields are swapped
-    lon:          item.lat,
+    lat:          item.lat,
+    lon:          item.lon,
   }
 }
 
@@ -136,8 +136,8 @@ export function mapDetail(detail: CafeDetail): Cafe {
       conv,
       Array.isArray(detail.informationFacilitie) ? detail.informationFacilitie : [],
     ),
-    lat:          detail.lon,  // backend lat field actually holds longitude (127.xx)
-    lon:          detail.lat,  // backend lon field actually holds latitude (37.xx)
+    lat:          detail.lat,
+    lon:          detail.lon,
     topKeywords:  detail.topKeywords ?? [],
   }
 }

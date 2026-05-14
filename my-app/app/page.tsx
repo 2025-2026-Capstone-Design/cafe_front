@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Cafe, AspectKey, ASPECT_LABELS, Keyword } from '@/lib/types'
 import { getPreferences } from '@/lib/preferences'
+import { getSavedConveniences } from '@/lib/conveniences'
 import SearchBar from '@/components/SearchBar'
 import FilterPanel, { KeywordId } from '@/components/FilterPanel'
 import Link from 'next/link'
@@ -45,6 +46,7 @@ export default function HomePage() {
   const [query, setQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [appliedKeywords, setAppliedKeywords] = useState<KeywordId[]>([])
+  const [appliedConveniences, setAppliedConveniences] = useState<string[]>([])
   const [preferences, setPreferences] = useState<AspectKey[]>([])
   const [apiCafes, setApiCafes] = useState<Cafe[]>([])
   const [loading, setLoading] = useState(false)
@@ -56,7 +58,8 @@ export default function HomePage() {
     const vector = preferences.length > 0
       ? aspectsToVector(preferences)
       : new Array(12).fill(0) as number[]
-    searchCafes(vector, 1, 50)
+    const savedConveniences = getSavedConveniences()
+    searchCafes(vector, 1, 50, savedConveniences)
       .then(data => {
         const cafes = data.cafes.map(mapSearchItem)
         setCafeCache(cafes)
@@ -66,23 +69,31 @@ export default function HomePage() {
       .finally(() => setLoading(false))
   }, [preferences.join(',')])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleApply = useCallback((selected: Set<KeywordId>, _conveniences: Set<string>) => {
+  const handleApply = useCallback((selected: Set<KeywordId>, conveniences: Set<string>) => {
+    const convArr = [...conveniences]
     setAppliedKeywords([...selected])
+    setAppliedConveniences(convArr)
     setFilterOpen(false)
-    if (selected.size > 0) {
+    if (selected.size > 0 || conveniences.size > 0) {
       const params = new URLSearchParams()
-      params.set('keywords', [...selected].join(','))
+      if (selected.size > 0) params.set('keywords', [...selected].join(','))
+      if (conveniences.size > 0) params.set('conveniences', convArr.join(','))
       router.push(`/search?${params}`)
     }
   }, [router])
 
   const handleReset = useCallback(() => {
     setAppliedKeywords([])
+    setAppliedConveniences([])
     setFilterOpen(false)
   }, [])
 
   const handleRemoveKeyword = useCallback((id: KeywordId) => {
     setAppliedKeywords(prev => prev.filter(k => k !== id))
+  }, [])
+
+  const handleRemoveConvenience = useCallback((apiName: string) => {
+    setAppliedConveniences(prev => prev.filter(c => c !== apiName))
   }, [])
 
   const handleSearch = useCallback((q: string) => {
@@ -139,16 +150,18 @@ export default function HomePage() {
             onQueryChange={setQuery}
             filterOpen={filterOpen}
             onFilterToggle={() => setFilterOpen(v => !v)}
-            appliedCount={appliedKeywords.length}
+            appliedCount={appliedKeywords.length + appliedConveniences.length}
             appliedKeywords={appliedKeywords}
             onRemoveKeyword={handleRemoveKeyword}
+            appliedConveniences={appliedConveniences}
+            onRemoveConvenience={handleRemoveConvenience}
             onSearch={handleSearch}
           />
 
           {filterOpen && (
             <FilterPanel
               applied={appliedKeywords}
-              appliedConveniences={[]}
+              appliedConveniences={appliedConveniences}
               onApply={handleApply}
               onReset={handleReset}
             />
