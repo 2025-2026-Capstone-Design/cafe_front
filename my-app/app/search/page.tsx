@@ -8,7 +8,7 @@ import { getPreferences } from '@/lib/preferences'
 import SearchBar from '@/components/SearchBar'
 import { useSearchParams } from 'next/navigation'
 import CafeDetailPanel from '@/components/CafeDetailPanel'
-import { searchCafes, searchCafesAdvanced, aspectsToVector } from '@/lib/api'
+import { searchCafes, searchCafesAdvanced, searchCafesByName, aspectsToVector } from '@/lib/api'
 import { mapSearchItem } from '@/lib/mappers'
 
 declare global {
@@ -113,7 +113,7 @@ function MapPage() {
     ])]
   ), [pinnedAspects, appliedKeywords])
 
-  const fetchCafes = useCallback((aspects: AspectKey[], keywords: string[], conveniences: string[] = []) => {
+  const fetchCafesByAspect = useCallback((aspects: AspectKey[], keywords: string[], conveniences: string[] = []) => {
     setLoadingCafes(true)
     const vector = aspects.length > 0
       ? aspectsToVector(aspects)
@@ -129,23 +129,48 @@ function MapPage() {
       .finally(() => setLoadingCafes(false))
   }, [preferences])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fetchCafes = useCallback((aspects: AspectKey[], keywords: string[], conveniences: string[] = [], name?: string) => {
+    if (name) {
+      setLoadingCafes(true)
+      searchCafesByName(name, 1, 50)
+        .then(data => { setCafes(data.cafes.map(mapSearchItem)) })
+        .catch((e) => {
+          console.error('[fetchCafesByName] 에러:', e)
+          // name search 엔드포인트 실패 시 aspect 검색으로 폴백
+          fetchCafesByAspect(aspects, keywords, conveniences)
+        })
+        .finally(() => setLoadingCafes(false))
+    } else {
+      fetchCafesByAspect(aspects, keywords, conveniences)
+    }
+  }, [fetchCafesByAspect])  // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const aspects = [...new Set([
       ...pinnedAspects,
       ...initialKeywords.map(id => id.split(':')[0] as AspectKey),
     ])]
     const keywords = initialKeywords.map(id => id.split(':')[1])
-    fetchCafes(aspects, keywords, appliedConveniences)
+    fetchCafes(aspects, keywords, appliedConveniences, initialQuery.trim() || undefined)
   }, [pinnedAspects.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return q
-      ? cafes.filter(cafe =>
-          cafe.name.toLowerCase().includes(q) || cafe.address.toLowerCase().includes(q)
-        )
-      : cafes
-  }, [cafes, query])
+  const prevQueryRef = useRef(initialQuery)
+  useEffect(() => {
+    const q = query.trim()
+    if (q === prevQueryRef.current.trim()) return
+    prevQueryRef.current = query
+    const timer = setTimeout(() => {
+      const aspects = [...new Set([
+        ...pinnedAspects,
+        ...appliedKeywords.map(id => id.split(':')[0] as AspectKey),
+      ])]
+      const keywords = appliedKeywords.map(id => id.split(':')[1])
+      fetchCafes(aspects, keywords, appliedConveniences, q || undefined)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [query]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const results = cafes
 
   const selectCafeRef = useRef<(id: string) => void>(() => {})
 
@@ -290,7 +315,7 @@ function MapPage() {
     setAppliedKeywords(ids)
     setAppliedConveniences(convArr)
     setFilterOpen(false)
-    fetchCafes(aspects, keywords, convArr)
+    fetchCafesByAspect(aspects, keywords, convArr)
 
     const params = new URLSearchParams()
     if (query.trim()) params.set('q', query.trim())
@@ -305,7 +330,8 @@ function MapPage() {
     setAppliedConveniences([])
     setPinnedAspects([])
     setFilterOpen(false)
-    fetchCafes([], [], [])
+    setQuery('')
+    fetchCafesByAspect([], [], [])
     router.replace('/search')
   }
 
@@ -314,7 +340,7 @@ function MapPage() {
     const aspects = [...new Set([...pinnedAspects, ...next.map(k => k.split(':')[0] as AspectKey)])]
     const keywords = next.map(k => k.split(':')[1])
     setAppliedKeywords(next)
-    fetchCafes(aspects, keywords, appliedConveniences)
+    fetchCafesByAspect(aspects, keywords, appliedConveniences)
   }
 
   const handleRemoveConvenience = (apiName: string) => {
@@ -322,7 +348,7 @@ function MapPage() {
     const aspects = [...new Set([...pinnedAspects, ...appliedKeywords.map(k => k.split(':')[0] as AspectKey)])]
     const keywords = appliedKeywords.map(k => k.split(':')[1])
     setAppliedConveniences(next)
-    fetchCafes(aspects, keywords, next)
+    fetchCafesByAspect(aspects, keywords, next)
   }
 
   const closeDetail = useCallback(() => {

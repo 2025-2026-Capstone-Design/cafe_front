@@ -106,6 +106,21 @@ export async function searchCafesAdvanced(
   return res.json() as Promise<SearchResponse>
 }
 
+export async function searchCafesByName(
+  name: string,
+  page = 1,
+  limit = 50,
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({
+    name,
+    page: String(page),
+    limit: String(limit),
+  })
+  const res = await fetch(`${BASE_URL}/cafe/search/name?${params}`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`Name search failed: ${res.status}`)
+  return res.json() as Promise<SearchResponse>
+}
+
 export async function getCafeDetail(id: string): Promise<CafeDetail> {
   const res = await fetch(`${BASE_URL}/cafe/${id}`)
   if (!res.ok) throw new Error(`Detail fetch failed: ${res.status}`)
