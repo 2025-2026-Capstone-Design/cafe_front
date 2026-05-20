@@ -104,6 +104,10 @@ function MapPage() {
   // API 결과 or mock fallback
   const [cafes, setCafes] = useState<Cafe[]>([])
   const [loadingCafes, setLoadingCafes] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [preferences] = useState<AspectKey[]>(() => getPreferences())
 
   const activeAspects = useMemo<AspectKey[]>(() => (
@@ -115,16 +119,21 @@ function MapPage() {
 
   const fetchCafesByAspect = useCallback((aspects: AspectKey[], keywords: string[], conveniences: string[] = []) => {
     setLoadingCafes(true)
+    setPage(1)
     const vector = aspects.length > 0
       ? aspectsToVector(aspects)
       : preferences.length > 0
         ? aspectsToVector(preferences)
         : new Array(12).fill(0) as number[]
     const fetch$ = keywords.length > 0
-      ? searchCafesAdvanced(vector, keywords, 1, 50, conveniences)
-      : searchCafes(vector, 1, 50, conveniences)
+      ? searchCafesAdvanced(vector, keywords, 1, 20, conveniences)
+      : searchCafes(vector, 1, 20, conveniences)
     fetch$
-      .then(data => { setCafes(data.cafes.map(mapSearchItem)) })
+      .then(data => {
+        setCafes(data.cafes.map(mapSearchItem))
+        setTotalPages(data.totalPages)
+        setTotalCount(data.totalCount)
+      })
       .catch((e) => { console.error('[fetchCafes] 에러:', e); setCafes([]) })
       .finally(() => setLoadingCafes(false))
   }, [preferences])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -132,8 +141,13 @@ function MapPage() {
   const fetchCafes = useCallback((aspects: AspectKey[], keywords: string[], conveniences: string[] = [], name?: string) => {
     if (name) {
       setLoadingCafes(true)
-      searchCafesByName(name, 1, 50)
-        .then(data => { setCafes(data.cafes.map(mapSearchItem)) })
+      setPage(1)
+      searchCafesByName(name, 1, 20)
+        .then(data => {
+          setCafes(data.cafes.map(mapSearchItem))
+          setTotalPages(data.totalPages)
+          setTotalCount(data.totalCount)
+        })
         .catch((e) => {
           console.error('[fetchCafesByName] 에러:', e)
           // name search 엔드포인트 실패 시 aspect 검색으로 폴백
@@ -144,6 +158,40 @@ function MapPage() {
       fetchCafesByAspect(aspects, keywords, conveniences)
     }
   }, [fetchCafesByAspect])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadMore = useCallback(() => {
+    if (page >= totalPages || loadingMore || loadingCafes) return
+    const nextPage = page + 1
+    setLoadingMore(true)
+
+    const currentQuery = query.trim()
+    const aspects = [...new Set([
+      ...pinnedAspects,
+      ...appliedKeywords.map(id => id.split(':')[0] as AspectKey),
+    ])]
+    const keywords = appliedKeywords.map(id => id.split(':')[1])
+    const vector = aspects.length > 0
+      ? aspectsToVector(aspects)
+      : preferences.length > 0
+        ? aspectsToVector(preferences)
+        : new Array(12).fill(0) as number[]
+
+    const fetchPromise = currentQuery
+      ? searchCafesByName(currentQuery, nextPage, 20)
+      : keywords.length > 0
+        ? searchCafesAdvanced(vector, keywords, nextPage, 20, appliedConveniences)
+        : searchCafes(vector, nextPage, 20, appliedConveniences)
+
+    fetchPromise
+      .then(data => {
+        setCafes(prev => [...prev, ...data.cafes.map(mapSearchItem)])
+        setPage(nextPage)
+        setTotalPages(data.totalPages)
+        setTotalCount(data.totalCount)
+      })
+      .catch(e => console.error('[loadMore] 에러:', e))
+      .finally(() => setLoadingMore(false))
+  }, [page, totalPages, loadingMore, loadingCafes, query, pinnedAspects, appliedKeywords, appliedConveniences, preferences])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const aspects = [...new Set([
@@ -386,7 +434,7 @@ function MapPage() {
         </div>
 
         <div className="px-3.5 py-2 text-[11px] text-neutral-400 border-b border-neutral-100 flex items-center gap-2">
-          {loadingCafes ? <span>검색 중…</span> : <span>{results.length}개 카페</span>}
+          {loadingCafes ? <span>검색 중…</span> : <span>{results.length}{totalCount > results.length ? ` / ${totalCount}` : ''}개 카페</span>}
           {activeAspects.length > 0 && <span className="text-violet-500">· 필터 적용됨</span>}
         </div>
 
@@ -397,55 +445,77 @@ function MapPage() {
             </div>
           ) : results.length === 0 ? (
             <p className="text-center text-[13px] text-neutral-400 py-12">조건에 맞는 카페가 없어요</p>
-          ) : results.map((cafe, i) => {
-            const isSelected = selectedId === cafe.id
-            const repKeywords = (Object.values(cafe.keywords).flat() as Keyword[]).sort((a, b) => b.count - a.count).slice(0, 3)
-            const flatKeywords = cafe.topKeywords?.slice(0, 3) ?? []
-            const thumbColors = ['#C8B49A','#D4C4A8','#A8C4C8','#B8C4A8','#C4A8B8','#B4A898']
-            return (
-              <div
-                key={cafe.id}
-                id={`cafe-card-${cafe.id}`}
-                onClick={() => selectCafe(cafe.id)}
-                className={`flex gap-2.5 px-3.5 py-3 border-b border-neutral-100 cursor-pointer transition-colors
-                  ${isSelected ? 'bg-violet-50' : 'hover:bg-neutral-50'}`}
-              >
-                <div
-                  className="w-16 h-16 rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
-                  style={{ background: `${thumbColors[i % thumbColors.length]}22` }}
-                >
-                  {cafe.imageUrl ? (
-                    <img src={cafe.imageUrl} alt={cafe.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
-                      <rect x="4" y="8" width="32" height="24" rx="3" stroke="#aaa" strokeWidth="1.5" opacity="0.5"/>
-                      <circle cx="14" cy="17" r="3" fill="#aaa" opacity="0.5"/>
-                      <path d="M4 28l8-7 6 5 6-8 12 11" stroke="#aaa" strokeWidth="1.5" fill="none" opacity="0.5"/>
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-0.5">
-                    <span className="font-serif text-[14px] font-semibold text-neutral-900 truncate max-w-[130px]">{cafe.name}</span>
-                    {cafe.score > 0 && (
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 shrink-0 ml-1">
-                        {cafe.score}점
-                      </span>
+          ) : (
+            <>
+              {results.map((cafe, i) => {
+                const isSelected = selectedId === cafe.id
+                const repKeywords = (Object.values(cafe.keywords).flat() as Keyword[]).sort((a, b) => b.count - a.count).slice(0, 3)
+                const flatKeywords = cafe.topKeywords?.slice(0, 3) ?? []
+                const thumbColors = ['#C8B49A','#D4C4A8','#A8C4C8','#B8C4A8','#C4A8B8','#B4A898']
+                return (
+                  <div
+                    key={cafe.id}
+                    id={`cafe-card-${cafe.id}`}
+                    onClick={() => selectCafe(cafe.id)}
+                    className={`flex gap-2.5 px-3.5 py-3 border-b border-neutral-100 cursor-pointer transition-colors
+                      ${isSelected ? 'bg-violet-50' : 'hover:bg-neutral-50'}`}
+                  >
+                    <div
+                      className="w-16 h-16 rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
+                      style={{ background: `${thumbColors[i % thumbColors.length]}22` }}
+                    >
+                      {cafe.imageUrl ? (
+                        <img src={cafe.imageUrl} alt={cafe.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
+                          <rect x="4" y="8" width="32" height="24" rx="3" stroke="#aaa" strokeWidth="1.5" opacity="0.5"/>
+                          <circle cx="14" cy="17" r="3" fill="#aaa" opacity="0.5"/>
+                          <path d="M4 28l8-7 6 5 6-8 12 11" stroke="#aaa" strokeWidth="1.5" fill="none" opacity="0.5"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-0.5">
+                        <span className="font-serif text-[14px] font-semibold text-neutral-900 truncate max-w-[130px]">{cafe.name}</span>
+                        {cafe.score > 0 && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 shrink-0 ml-1">
+                            {cafe.score}점
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-neutral-500 truncate mb-1.5">{cafe.address}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {(repKeywords.length > 0 ? repKeywords : flatKeywords.map(k => ({ text: k.keyword, sentiment: 'pos' as const, count: k.count }))).map(kw => (
+                          <span key={kw.text} className={`text-[10px] px-1.5 py-0.5 rounded-full border
+                            ${kw.sentiment === 'pos' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-orange-50 text-orange-800 border-orange-200'}`}>
+                            {kw.text}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              {page < totalPages && (
+                <div className="px-3.5 py-4 flex justify-center">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="text-[12px] text-violet-600 border border-violet-200 rounded-lg px-4 py-2 hover:bg-violet-50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <div className="w-3 h-3 border border-violet-400 border-t-transparent rounded-full animate-spin" />
+                        불러오는 중…
+                      </>
+                    ) : (
+                      `더 보기 (${totalCount - results.length}개 남음)`
                     )}
-                  </div>
-                  <p className="text-[11px] text-neutral-500 truncate mb-1.5">{cafe.address}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {(repKeywords.length > 0 ? repKeywords : flatKeywords.map(k => ({ text: k.keyword, sentiment: 'pos' as const, count: k.count }))).map(kw => (
-                      <span key={kw.text} className={`text-[10px] px-1.5 py-0.5 rounded-full border
-                        ${kw.sentiment === 'pos' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-orange-50 text-orange-800 border-orange-200'}`}>
-                        {kw.text}
-                      </span>
-                    ))}
-                  </div>
+                  </button>
                 </div>
-              </div>
-            )
-          })}
+              )}
+            </>
+          )}
         </div>
       </div>
 
