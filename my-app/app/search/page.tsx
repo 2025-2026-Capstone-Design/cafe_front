@@ -176,7 +176,7 @@ function MapPage() {
         ? aspectsToVector(preferences)
         : new Array(12).fill(0) as number[]
 
-    const fetchPromise = currentQuery
+    const fetchPromise = currentQuery && appliedConveniences.length === 0
       ? searchCafesByName(currentQuery, nextPage, 20)
       : keywords.length > 0
         ? searchCafesAdvanced(vector, keywords, nextPage, 20, appliedConveniences)
@@ -435,7 +435,7 @@ function MapPage() {
 
         <div className="px-3.5 py-2 text-[11px] text-neutral-400 border-b border-neutral-100 flex items-center gap-2">
           {loadingCafes ? <span>검색 중…</span> : <span>{results.length}{totalCount > results.length ? ` / ${totalCount}` : ''}개 카페</span>}
-          {activeAspects.length > 0 && <span className="text-violet-500">· 필터 적용됨</span>}
+          {(activeAspects.length > 0 || appliedConveniences.length > 0) && <span className="text-violet-500">· 필터 적용됨</span>}
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">

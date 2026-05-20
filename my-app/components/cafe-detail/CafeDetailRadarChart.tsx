@@ -32,7 +32,7 @@ export function CafeDetailRadarChart({ aspectScores, compact = false }: Props) {
 
   const radarChart = (
     <div className={compact ? "h-[260px] w-full" : "h-[320px] w-full"}>
-      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
           <PolarGrid />
           <PolarAngleAxis dataKey="aspect" tick={{ fontSize: compact ? 10 : 11 }} tickLine={false} />
