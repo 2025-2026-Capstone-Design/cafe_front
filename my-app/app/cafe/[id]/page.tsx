@@ -13,6 +13,7 @@ import { CafeDetailInfo } from '@/components/cafe-detail/CafeDetailInfo'
 import { CafeDetailRadarChart } from '@/components/cafe-detail/CafeDetailRadarChart'
 import { CafeDetailReviews } from '@/components/cafe-detail/CafeDetailReviews'
 import { CafeDetailSidebar } from '@/components/cafe-detail/CafeDetailSidebar'
+import { CafeDetailMenu } from '@/components/cafe-detail/CafeDetailMenu'
 import { HomeFooter } from '@/components/HomeFooter'
 
 export default function CafeDetailPage() {
@@ -87,6 +88,7 @@ export default function CafeDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             <CafeDetailInfo cafe={cafe} bookmarked={bookmarked} onBookmark={handleBookmark} />
             <CafeDetailRadarChart aspectScores={cafe.aspectScores} />
+            <CafeDetailMenu />
             <CafeDetailReviews reviews={reviews} totalCount={cafe.reviewCount ?? 0} cafeId={cafeId} cafeName={cafe.name} />
           </div>
 

@@ -1,5 +1,8 @@
-import { Cafe, AspectKey, ASPECT_LABELS } from "@/lib/types"
+import { Cafe } from "@/lib/types"
+import Link from "next/link"
+import { MapPin, Star } from "lucide-react"
 
+// ─── 편의시설 ────────────────────────────────────────────────────────────
 interface AmenityItem { label: string; icon: () => React.ReactNode }
 
 const AMENITY_META: Record<string, AmenityItem> = {
@@ -13,30 +16,36 @@ const AMENITY_META: Record<string, AmenityItem> = {
   kids:        { label: "키즈",     icon: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="5" r="2"/><path d="M12 7v8m-4 0l1-4m6 4l-1-4M8 15l-2 4m8-4l2 4"/></svg> },
 }
 
+// ─── 하드코딩 유사 카페 ──────────────────────────────────────────────────
+const SIMILAR_CAFES = [
+  { name: "어니언 성수", location: "성수동", score: 9.6, img: "https://ldb-phinf.pstatic.net/20240504_95/1714807051138BmzpY_JPEG/IMG_4445.jpeg" },
+  { name: "모노클 커피", location: "성수동", score: 9.4, img: "https://ldb-phinf.pstatic.net/20240504_163/1714807049207a0P7V_JPEG/IMG_4447.jpeg" },
+  { name: "카페 식물관", location: "연남동", score: 9.0, img: "https://ldb-phinf.pstatic.net/20250513_296/1747135912549DLgc6_JPEG/482610228_1318736439173579_8954953484364667380_n.jpg" },
+]
+
 interface Props { cafe: Cafe }
 
 export function CafeDetailSidebar({ cafe }: Props) {
-  const activeAspects = (Object.entries(cafe.aspectScores ?? {}) as [AspectKey, number][])
-    .filter(([, v]) => v > 0)
-    .sort(([, a], [, b]) => b - a)
+  const keywords = cafe.topKeywords?.slice(0, 10) ?? []
 
   return (
-    <div className="space-y-6">
-      {/* Amenities */}
+    <div className="flex flex-col gap-4">
+
+      {/* 편의시설 */}
       {cafe.amenities && (
-        <div className="bg-card rounded-xl p-6 border border-border">
-          <h2 className="text-lg font-bold text-foreground mb-4">편의시설</h2>
+        <div className="bg-card rounded-2xl p-5 border border-border">
+          <h2 className="text-base font-bold text-foreground mb-4">편의시설</h2>
           <div className="grid grid-cols-4 gap-3">
             {Object.entries(AMENITY_META).map(([key, { label, icon: Icon }]) => {
               const active = cafe.amenities[key as keyof typeof cafe.amenities]
               return (
                 <div key={key} className="flex flex-col items-center gap-1.5">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${
-                    active ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground/40"
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                    active ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground/30"
                   }`}>
                     <Icon />
                   </div>
-                  <span className={`text-[10px] text-center ${active ? "text-foreground" : "text-muted-foreground/40"}`}>
+                  <span className={`text-[10px] text-center leading-tight ${active ? "text-foreground font-medium" : "text-muted-foreground/40"}`}>
                     {label}
                   </span>
                 </div>
@@ -46,80 +55,53 @@ export function CafeDetailSidebar({ cafe }: Props) {
         </div>
       )}
 
-      {/* Top Keywords */}
-      {(cafe.topKeywords?.length ?? 0) > 0 && (
-        <div className="bg-card rounded-xl p-6 border border-border">
-          <h2 className="text-lg font-bold text-foreground mb-4">인기 키워드</h2>
-          <div className="flex flex-wrap gap-2">
-            {cafe.topKeywords!.map(k => (
-              <span key={k.keyword} className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                {k.keyword}
-                <span className="ml-1 opacity-60">{k.count}</span>
+      {/* 인기 키워드 */}
+      {keywords.length > 0 && (
+        <div className="bg-card rounded-2xl p-5 border border-border">
+          <h2 className="text-base font-bold text-foreground mb-3">사람들이 많이 언급한 키워드</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {keywords.map(k => (
+              <span key={k.keyword} className="text-xs px-2.5 py-1 bg-secondary rounded-full text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                #{k.keyword}
               </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Aspect Bars */}
-      {activeAspects.length > 0 && (
-        <div className="bg-card rounded-xl p-6 border border-border">
-          <h2 className="text-lg font-bold text-foreground mb-4">측면별 분석</h2>
-          <div className="space-y-3">
-            {activeAspects.map(([key, score]) => {
-              const color = score >= 70 ? "bg-green-400" : score >= 40 ? "bg-yellow-400" : "bg-red-400"
-              const kws = cafe.keywords?.[key] ?? []
-              const total = kws.reduce((s, k) => s + k.count, 0)
-              const posP = total > 0 ? kws.filter(k => k.sentiment === "pos").reduce((s, k) => s + k.count, 0) / total : 0
-              const negP = total > 0 ? kws.filter(k => k.sentiment === "neg").reduce((s, k) => s + k.count, 0) / total : 0
-              return (
-                <div key={key}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs text-muted-foreground">{ASPECT_LABELS[key]}</span>
-                    <span className="text-xs font-medium">{score}</span>
+      {/* 비슷한 카페 */}
+      <div className="bg-card rounded-2xl p-5 border border-border">
+        <h2 className="text-base font-bold text-foreground mb-3">비슷한 카페</h2>
+        <div className="flex flex-col gap-3">
+          {SIMILAR_CAFES.map(c => (
+            <Link key={c.name} href="/search" className="flex items-center gap-3 group">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={c.img}
+                  alt={c.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{c.name}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">{c.location}</span>
                   </div>
-                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
+                  <div className="flex items-center gap-0.5">
+                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    <span className="text-xs font-semibold text-amber-600">{c.score}</span>
                   </div>
-                  {total > 0 && (
-                    <div className="flex gap-2 mt-0.5">
-                      {posP > 0 && <span className="text-[10px] text-green-600">긍정 {Math.round(posP * 100)}%</span>}
-                      {negP > 0 && <span className="text-[10px] text-red-500">부정 {Math.round(negP * 100)}%</span>}
-                    </div>
-                  )}
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            </Link>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Keywords per aspect */}
-      {activeAspects.filter(([k]) => (cafe.keywords?.[k]?.length ?? 0) > 0).length > 0 && (
-        <div className="bg-card rounded-xl p-6 border border-border">
-          <h2 className="text-lg font-bold text-foreground mb-4">키워드</h2>
-          <div className="space-y-4">
-            {activeAspects
-              .filter(([k]) => (cafe.keywords?.[k]?.length ?? 0) > 0)
-              .map(([key]) => (
-                <div key={key}>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">{ASPECT_LABELS[key]}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {cafe.keywords![key]!.map(kw => (
-                      <span key={kw.text} className={`text-xs px-2 py-0.5 rounded-full border ${
-                        kw.sentiment === "pos"
-                          ? "bg-green-50 text-green-800 border-green-200"
-                          : "bg-red-50 text-red-800 border-red-200"
-                      }`}>
-                        {kw.text} <span className="opacity-50">{kw.count}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

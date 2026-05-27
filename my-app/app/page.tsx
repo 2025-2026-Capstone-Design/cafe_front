@@ -20,6 +20,8 @@ import { AbsaFeatureSection } from '@/components/AbsaFeatureSection'
 import { ReviewAnalysisPreview } from '@/components/ReviewAnalysisPreview'
 import { LocationBanner } from '@/components/LocationBanner'
 import { HomeFooter } from '@/components/HomeFooter'
+import { FriendsMatchPanel } from '@/components/FriendsMatchPanel'
+import { FriendCafeOverlapPanel } from '@/components/FriendCafeOverlapPanel'
 
 function getPopularKeywords(cafes: Cafe[], limit = 8): Keyword[] {
   const map = new Map<string, Keyword>()
@@ -197,6 +199,12 @@ export default function HomePage() {
         viewAllLink="/search"
         loading={loading}
       />
+
+      {/* 친구 매칭 패널 */}
+      <FriendsMatchPanel />
+
+      {/* 친구와 겹치는 카페 */}
+      <FriendCafeOverlapPanel />
 
       {/* ABSA 기능 소개 */}
       <AbsaFeatureSection />
